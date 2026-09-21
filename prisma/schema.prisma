@@ -1,0 +1,235 @@
+// Admin authentication module — Phase 2 will activate these models.
+// Placeholder relations (Customer/Seller) are stubbed so future modules
+// extend this file without rewriting admin tables.
+//
+// Naming: snake_case @@map for MySQL convention; Prisma models PascalCase.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model AdminUser {
+  id String @id @default(cuid())
+
+  email             String    @unique @db.VarChar(255)
+  emailNormalized   String    @unique @db.VarChar(255)
+  passwordHash      String    @db.VarChar(255)
+  passwordChangedAt DateTime?
+  passwordHistory   AdminPasswordHistory[]
+
+  status          AdminStatus @default(PENDING)
+  emailVerifiedAt DateTime?
+
+  // 2FA (TOTP secret is AES-256-GCM encrypted, never plaintext)
+  totpEnabled         Boolean   @default(false)
+  totpSecretEncrypted String?   @db.Text
+  totpEnrolledAt      DateTime?
+
+  // Lockout / throttling counters
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+
+  // Token/session version — bump to revoke all JWTs + sessions
+  tokenVersion Int @default(0)
+
+  roles    AdminRoleAssignment[]
+  sessions AdminSession[]
+  recoveryCodes AdminRecoveryCode[]
+  resetTokens   AdminPasswordResetToken[]
+  loginEvents   AdminLoginActivity[]
+  auditEvents   AdminAuditLog[] @relation("AuditActor")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@map("admin_users")
+}
+
+model AdminPasswordHistory {
+  id        String   @id @default(cuid())
+  adminId   String
+  admin     AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  passwordHash String @db.VarChar(255)
+  createdAt DateTime @default(now())
+
+  @@index([adminId, createdAt])
+  @@map("admin_password_history")
+}
+
+model AdminRole {
+  id          String  @id @default(cuid())
+  key         String  @unique @db.VarChar(64) // e.g. super_admin, sub_admin, support
+  name        String  @db.VarChar(128)
+  description String? @db.VarChar(500)
+  isSystem    Boolean @default(false) // system roles cannot be deleted
+
+  permissions AdminRolePermission[]
+  assignments AdminRoleAssignment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("admin_roles")
+}
+
+model Permission {
+  id          String  @id @default(cuid())
+  key         String  @unique @db.VarChar(64) // e.g. admin.read, role.assign
+  description String? @db.VarChar(500)
+
+  roles AdminRolePermission[]
+
+  @@map("permissions")
+}
+
+model AdminRolePermission {
+  roleId       String
+  permissionId String
+  role         AdminRole  @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  assignedAt DateTime @default(now())
+
+  @@id([roleId, permissionId])
+  @@map("admin_role_permissions")
+}
+
+model AdminRoleAssignment {
+  adminId    String
+  roleId     String
+  admin      AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  role       AdminRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  assignedBy String? // acting admin id (audit join, no FK to allow retention)
+  assignedAt DateTime @default(now())
+
+  @@id([adminId, roleId])
+  @@index([roleId])
+  @@map("admin_role_assignments")
+}
+
+// One row per refresh-token family. Refresh token itself is opaque;
+// only its SHA-256 hash is stored. Rotation creates a new row chained
+// via previousTokenHash; reuse of a rotated token revokes the family.
+model AdminSession {
+  id String @id @default(cuid())
+
+  adminId String
+  admin   AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  refreshTokenHash         String    @unique @db.VarChar(128)
+  previousTokenHash        String?   @db.VarChar(128)
+  familyId                 String    @db.VarChar(64)
+  ipAddress                String?   @db.VarChar(64)
+  userAgent                String?   @db.VarChar(512)
+  expiresAt                DateTime
+  revokedAt                DateTime?
+  revokeReason             String?   @db.VarChar(128)
+  lastUsedAt               DateTime  @default(now())
+  createdAt                DateTime  @default(now())
+
+  @@index([adminId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("admin_sessions")
+}
+
+model AdminRecoveryCode {
+  id         String    @id @default(cuid())
+  adminId    String
+  admin      AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  codeHash   String    @db.VarChar(255) // Argon2id hash, single-use
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([adminId])
+  @@map("admin_recovery_codes")
+}
+
+model AdminPasswordResetToken {
+  id        String    @id @default(cuid())
+  adminId   String
+  admin     AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique @db.VarChar(128) // SHA-256 of opaque token
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([adminId])
+  @@index([expiresAt])
+  @@map("admin_password_reset_tokens")
+}
+
+model AdminLoginActivity {
+  id        String  @id @default(cuid())
+  adminId   String?
+  admin     AdminUser? @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  event     LoginEventType
+  outcome   LoginOutcome
+  ipAddress String? @db.VarChar(64)
+  userAgent String? @db.VarChar(512)
+  sessionId String? @db.VarChar(64)
+  requestId String? @db.VarChar(64)
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([adminId, createdAt])
+  @@index([event, createdAt])
+  @@map("admin_login_activity")
+}
+
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      AdminUser? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  action     String   @db.VarChar(128) // e.g. admin.suspend, role.assign
+  resourceType String @db.VarChar(64)
+  resourceId   String? @db.VarChar(64)
+  before       Json?
+  after        Json?
+  ipAddress    String? @db.VarChar(64)
+  requestId    String? @db.VarChar(64)
+  createdAt    DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([resourceType, resourceId])
+  @@index([action, createdAt])
+  @@map("admin_audit_log")
+}
+
+enum AdminStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  DISABLED
+}
+
+enum LoginEventType {
+  LOGIN_ATTEMPT
+  LOGIN_SUCCESS
+  LOGIN_FAILURE
+  TWO_FA_CHALLENGE
+  TWO_FA_SUCCESS
+  TWO_FA_FAILURE
+  RECOVERY_CODE_USED
+  PASSWORD_RESET_REQUESTED
+  PASSWORD_RESET_COMPLETED
+  PASSWORD_CHANGED
+  TWO_FA_ENROLLED
+  TWO_FA_DISABLED
+  SESSION_CREATED
+  SESSION_REVOKED
+  SESSION_EXPIRED
+  ACCOUNT_LOCKED
+  ACCOUNT_UNLOCKED
+}
+
+enum LoginOutcome {
+  SUCCESS
+  FAILURE
+}

@@ -1,0 +1,78 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: ecomm-api
+    restart: unless-stopped
+    ports:
+      - '${PORT:-4000}:4000'
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: mysql://ecomm:${MYSQL_PASSWORD:-ecomm_dev_password}@mysql:3306/ecomm
+      REDIS_URL: redis://redis:6379
+      NODE_ENV: development
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src:ro
+      - ./prisma:/app/prisma:ro
+    networks:
+      - ecomm-net
+    command: npm run dev
+
+  mysql:
+    image: mysql:8
+    container_name: ecomm-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_dev_password}
+      MYSQL_DATABASE: ecomm
+      MYSQL_USER: ecomm
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-ecomm_dev_password}
+    ports:
+      # Host 3306/3307 are taken (local MySQL + paisawise) — phpMyAdmin can
+      # reach this instance at 127.0.0.1:3308.
+      - '127.0.0.1:3308:3306'
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p${MYSQL_ROOT_PASSWORD:-root_dev_password}']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - ecomm-net
+
+  redis:
+    image: redis:8-alpine
+    container_name: ecomm-redis
+    restart: unless-stopped
+    # Dev only: no password, bound to loopback. Add --requirepass for shared hosts.
+    command: redis-server --appendonly yes
+    ports:
+      - '127.0.0.1:6379:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - ecomm-net
+
+networks:
+  ecomm-net:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:
