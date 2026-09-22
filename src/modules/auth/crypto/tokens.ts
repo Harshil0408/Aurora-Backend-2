@@ -66,3 +66,49 @@ export function verifyAccessToken(token: string): VerifyAccessResult {
 export function generateRefreshToken(): string {
   return randomBytes(32).toString('base64url');
 }
+
+export const PENDING_TOKEN_PURPOSE = '2fa-pending';
+export const PENDING_TOKEN_TTL_SECONDS = 300;
+
+const pendingClaimsSchema = z.object({
+  sub: z.string().min(1),
+  purpose: z.literal(PENDING_TOKEN_PURPOSE),
+});
+
+/**
+ * 2FA-pending token: proves "password OK, 2FA still required". Grants
+ * NOTHING — no perms, no sid — and is accepted only by the 2FA verify
+ * endpoint (next stage). 5-minute expiry.
+ */
+export function signPendingToken(adminId: string): string {
+  const env = getEnv();
+  return jwt.sign({ sub: adminId, purpose: PENDING_TOKEN_PURPOSE }, env.JWT_ACCESS_SECRET, {
+    algorithm: 'HS256',
+    expiresIn: PENDING_TOKEN_TTL_SECONDS,
+    issuer: 'ecomm-admin',
+    audience: 'ecomm-admin-2fa',
+  });
+}
+
+export type VerifyPendingResult =
+  { valid: true; adminId: string } | { valid: false; reason: 'expired' | 'invalid' };
+
+export function verifyPendingToken(token: string): VerifyPendingResult {
+  const env = getEnv();
+  try {
+    const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET, {
+      algorithms: ['HS256'],
+      issuer: 'ecomm-admin',
+      audience: 'ecomm-admin-2fa',
+    }) as JwtPayload;
+    const parsed = pendingClaimsSchema.safeParse({
+      sub: decoded['sub'],
+      purpose: decoded['purpose'],
+    });
+    if (!parsed.success) return { valid: false, reason: 'invalid' };
+    return { valid: true, adminId: parsed.data.sub };
+  } catch (err: unknown) {
+    if (err instanceof jwt.TokenExpiredError) return { valid: false, reason: 'expired' };
+    return { valid: false, reason: 'invalid' };
+  }
+}

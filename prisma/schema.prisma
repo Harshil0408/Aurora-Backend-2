@@ -227,6 +227,7 @@ enum LoginEventType {
   SESSION_EXPIRED
   ACCOUNT_LOCKED
   ACCOUNT_UNLOCKED
+  LOGIN_BLOCKED_STATUS
 }
 
 enum LoginOutcome {

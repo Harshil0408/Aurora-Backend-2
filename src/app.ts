@@ -7,6 +7,9 @@ import { getEnv } from './config/env.js';
 import { errorHandler, notFound } from './shared/middleware/errorHandler.js';
 import { requestId } from './shared/middleware/requestId.js';
 import { healthRouter } from './modules/health/health.routes.js';
+import { authRouter } from './modules/auth/routes/auth.routes.js';
+import { adminRouter } from './modules/admin/routes/admin.routes.js';
+import { docsRouter } from './docs/docs.routes.js';
 
 export function createApp(): Express {
   const env = getEnv();
@@ -39,6 +42,9 @@ export function createApp(): Express {
   );
 
   app.use(`${env.API_PREFIX}/health`, healthRouter);
+  app.use(`${env.API_PREFIX}/admin/auth`, authRouter);
+  app.use(`${env.API_PREFIX}/admin`, adminRouter);
+  app.use('/api/docs', docsRouter);
 
   app.use(notFound);
   app.use(errorHandler);

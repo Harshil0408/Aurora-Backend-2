@@ -24,6 +24,10 @@ const envSchema = z.object({
 
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
+  LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
+
+  // Isolated integration-test database (never production).
+  TEST_DATABASE_URL: z.string().min(1).optional(),
 
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'debug']).default('info'),
 });
