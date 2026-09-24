@@ -20,6 +20,20 @@ const envSchema = z.object({
   SUPER_ADMIN_EMAIL: z.email().optional(),
   SUPER_ADMIN_PASSWORD: z.string().min(12, 'SUPER_ADMIN_PASSWORD must be >= 12 chars').optional(),
 
+  // Outgoing mail. When SMTP_HOST/USER/PASS are all set, real mail is sent;
+  // otherwise the LogMailer logs instead (dev default — nothing leaves the box).
+  // Gmail: SMTP_HOST=smtp.gmail.com, SMTP_PORT=587, SMTP_SECURE=false,
+  // SMTP_USER=you@gmail.com, SMTP_PASS=<16-char App Password, NOT login password>.
+  SMTP_HOST: z.string().min(1).optional(),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65_535).default(587),
+  SMTP_SECURE: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+  SMTP_USER: z.string().min(1).optional(),
+  SMTP_PASS: z.string().min(1).optional(),
+  MAIL_FROM: z.string().min(1).optional(),
+
   FRONTEND_ORIGIN: z.string().default('http://localhost:3000'),
 
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),

@@ -35,11 +35,21 @@ export async function requestPasswordReset(email: string, meta: RequestMeta): Pr
       });
       await logLoginEvent(tx, { adminId: admin.id, event: 'PASSWORD_RESET_REQUESTED', meta });
     });
-    await getMailer().send({
-      to: admin.email,
-      subject: 'Admin password reset',
-      text: `Use this one-time token within 1 hour: ${token}`,
-    });
+    try {
+      await getMailer().send({
+        to: admin.email,
+        subject: 'Admin password reset',
+        text: `Use this one-time token within 1 hour: ${token}`,
+      });
+    } catch (err: unknown) {
+      // Mail provider outage must not reveal account existence (500 vs 200)
+      // nor lose the request — the token row already exists; ops can resend.
+      logger.error('Password reset mail failed to send', {
+        adminId: admin.id,
+        requestId: meta.requestId,
+        error: err instanceof Error ? err.message : err,
+      });
+    }
   } else {
     logger.info('Password reset requested for unknown/inactive email', {
       requestId: meta.requestId,
