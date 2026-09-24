@@ -8,6 +8,16 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   REDIS_URL: z.string().min(1, 'REDIS_URL is required'),
 
+  // Upstash Redis REST (production). When both are set, health checks use
+  // the REST API instead of a native Redis connection. Native `rediss://`
+  // URL is still preferred for session/cache features (ioredis can't speak REST).
+  UPSTASH_REDIS_REST_URL: z.string().min(1).optional(),
+  UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
+
+  // Optional PEM for managed MySQL (Aiven/RDS). When set + ?ssl-mode=REQUIRED,
+  // the driver pins this CA instead of encrypted-but-unverified TLS.
+  DATABASE_SSL_CA: z.string().min(1).optional(),
+
   JWT_ACCESS_SECRET: z
     .string()
     .min(32, 'JWT_ACCESS_SECRET must be >= 32 chars')

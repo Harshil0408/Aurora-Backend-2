@@ -6,13 +6,28 @@ function createAdapter(): PrismaMariaDb {
   const raw = process.env['DATABASE_URL'];
   if (!raw) throw new Error('DATABASE_URL is required');
   const url = new URL(raw);
+  // Aiven / managed MySQL requires TLS (`?ssl-mode=REQUIRED`). The old code
+  // silently dropped query params, so prod connections failed the SSL check.
+  const sslParam = (
+    url.searchParams.get('ssl-mode') ??
+    url.searchParams.get('sslmode') ??
+    url.searchParams.get('ssl') ??
+    ''
+  ).toUpperCase();
+  const sslRequired = ['REQUIRED', 'REQUIRE', 'TRUE', '1', 'PREFERRED'].includes(sslParam);
+  const ca = process.env['DATABASE_SSL_CA'];
+  const database = url.pathname.replace(/^\//, '').split('?')[0] ?? '';
+  if (!database) throw new Error('DATABASE_URL must include a database name');
   return new PrismaMariaDb({
     host: url.hostname,
     port: url.port ? Number(url.port) : 3306,
     user: decodeURIComponent(url.username),
     password: decodeURIComponent(url.password),
-    database: url.pathname.replace(/^\//, ''),
+    database,
     connectionLimit: 10,
+    // Encrypted but without a pinned CA by default (works on Aiven/RDS).
+    // To pin the CA: set DATABASE_SSL_CA to the PEM contents.
+    ...(sslRequired ? { ssl: ca ? { ca, rejectUnauthorized: true } : { rejectUnauthorized: false } } : {}),
   });
 }
 
