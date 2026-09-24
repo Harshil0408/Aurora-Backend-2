@@ -25,6 +25,12 @@ function createAdapter(): PrismaMariaDb {
     password: decodeURIComponent(url.password),
     database,
     connectionLimit: 10,
+    // MySQL 8 uses caching_sha2_password. Over non-TLS dev connections
+    // (Docker on 127.0.0.1:3308) the mariadb driver must be allowed to
+    // fetch the server's RSA public key, otherwise every query fails with
+    // pool timeout (code 45028) caused by 45044 RSA public key unavailable.
+    // Harmless for TLS (Aiven) connections.
+    allowPublicKeyRetrieval: true,
     // Encrypted but without a pinned CA by default (works on Aiven/RDS).
     // To pin the CA: set DATABASE_SSL_CA to the PEM contents.
     ...(sslRequired ? { ssl: ca ? { ca, rejectUnauthorized: true } : { rejectUnauthorized: false } } : {}),

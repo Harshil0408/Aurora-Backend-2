@@ -1,7 +1,7 @@
 import type { CookieOptions, Request, Response } from 'express';
 import { z } from 'zod';
 import { getEnv } from '../../../config/env.js';
-import { forbidden, unauthorized } from '../../../shared/errors/AppError.js';
+import { badRequest, forbidden, unauthorized } from '../../../shared/errors/AppError.js';
 import { ok, paginated } from '../../../shared/utils/ApiResponse.js';
 import { asyncHandler } from '../../../shared/utils/asyncHandler.js';
 import { getRequestMeta } from '../../../shared/utils/requestMeta.js';
@@ -97,11 +97,24 @@ export const verify2fa = asyncHandler(async (req: Request, res: Response): Promi
   const pending = verifyPendingToken(pendingToken);
   if (!pending.valid) throw unauthorized('Invalid or expired token');
 
+  // Enrollment started but never confirmed: TOTP codes are correct yet
+  // verifySecondFactor would reject them (requires totpEnabled). Tell the
+  // caller to finish setup via /2fa/confirm instead of a misleading
+  // "Invalid verification code".
+  const prisma = getPrisma();
+  const pendingAdmin = await prisma.adminUser.findUnique({ where: { id: pending.adminId } });
+  if (pendingAdmin && !pendingAdmin.totpEnabled) {
+    throw badRequest(
+      pendingAdmin.totpSecretEncrypted
+        ? '2FA setup not finished — call POST /2fa/confirm with your authenticator code'
+        : '2FA not set up — call POST /2fa/enroll first',
+    );
+  }
+
   const meta = getRequestMeta(req);
   const method = await verifySecondFactor(pending.adminId, code, meta);
   if (!method) throw unauthorized('Invalid verification code');
 
-  const prisma = getPrisma();
   const admin = await prisma.adminUser.findUniqueOrThrow({ where: { id: pending.adminId } });
   const perms = await getEffectivePermissions(admin.id);
   const issued = await issueSession({

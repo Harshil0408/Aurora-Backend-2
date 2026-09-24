@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import { getEnv } from './config/env.js';
 import { errorHandler, notFound } from './shared/middleware/errorHandler.js';
 import { requestId } from './shared/middleware/requestId.js';
+import { requestLogger } from './shared/middleware/requestLogger.js';
 import { healthRouter } from './modules/health/health.routes.js';
 import { authRouter } from './modules/auth/routes/auth.routes.js';
 import { adminRouter } from './modules/admin/routes/admin.routes.js';
@@ -21,6 +22,7 @@ export function createApp(): Express {
   app.set('trust proxy', 1);
 
   app.use(requestId);
+  app.use(requestLogger);
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(
     cors({
