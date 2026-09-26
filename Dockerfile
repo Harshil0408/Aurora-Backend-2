@@ -6,6 +6,8 @@ COPY package.json package-lock.json* ./
 RUN npm install
 COPY . .
 
+
+
 # ---- Development ----
 FROM base AS development
 EXPOSE 4000
