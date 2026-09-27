@@ -8,9 +8,7 @@ import { errorHandler, notFound } from './shared/middleware/errorHandler.js';
 import { requestId } from './shared/middleware/requestId.js';
 import { requestLogger } from './shared/middleware/requestLogger.js';
 import { healthRouter } from './modules/health/health.routes.js';
-import { authRouter } from './modules/auth/routes/auth.routes.js';
-import { administrationRouter } from './modules/admin-panel/administration/administration.routes.js';
-import { adminSessionsRouter } from './modules/admin-panel/administration/sessions/sessions.routes.js';
+import { adminPanelRouter } from './modules/admin-panel/admin-panel.routes.js';
 import { docsRouter } from './docs/docs.routes.js';
 
 export function createApp(): Express {
@@ -45,12 +43,9 @@ export function createApp(): Express {
   );
 
   app.use(`${env.API_PREFIX}/health`, healthRouter);
-  app.use(`${env.API_PREFIX}/admin/auth`, authRouter);
-  // Sessions screen ("My sessions") — same URLs as before, code lives in
-  // the administration group.
-  app.use(`${env.API_PREFIX}/admin/auth`, adminSessionsRouter);
-  // Administration group: Admins, Roles & Permissions, Activity Log.
-  app.use(`${env.API_PREFIX}/admin`, administrationRouter);
+  // One mount per panel — each panel owns its namespace, so leaf routes
+  // (/auth/login, /auth/me, …) can never collide across panels.
+  app.use(`${env.API_PREFIX}/admin`, adminPanelRouter);
   app.use('/api/docs', docsRouter);
 
   app.use(notFound);

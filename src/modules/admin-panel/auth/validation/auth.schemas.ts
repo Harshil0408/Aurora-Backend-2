@@ -34,3 +34,14 @@ export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1).max(128),
   newPassword: z.string().min(12).max(128),
 });
+
+/** Authenticated 2FA code (logged-in admin confirming TOTP / email OTP). */
+export const twoFactorCodeSchema = z.object({
+  code: z.string().min(1).max(32),
+});
+
+/** Disable email-OTP 2FA: password re-auth + a fresh emailed code. */
+export const disableEmailOtpSchema = z.object({
+  password: z.string().min(1).max(128),
+  code: z.string().min(1).max(32),
+});

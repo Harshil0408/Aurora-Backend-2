@@ -37,7 +37,7 @@ afterAll(async () => {
 });
 
 function extractToken(mail: SecurityMail): string {
-  const match = /: (\S+)\s*$/.exec(mail.text);
+  const match = /manually: (\S+)/.exec(mail.text);
   if (!match?.[1]) throw new Error('no token in captured mail');
   return match[1];
 }

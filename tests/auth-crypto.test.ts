@@ -1,25 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { hashSecret, verifySecret } from '../src/modules/auth/crypto/password.js';
+import { hashSecret, verifySecret } from '../src/modules/admin-panel/auth/crypto/password.js';
 import {
   generateRecoveryCodes,
   hashRecoveryCodes,
   normalizeRecoveryCode,
   verifyRecoveryCode,
-} from '../src/modules/auth/crypto/recoveryCodes.js';
-import { hashToken } from '../src/modules/auth/crypto/tokenHash.js';
+} from '../src/modules/admin-panel/auth/crypto/recoveryCodes.js';
+import { hashToken } from '../src/modules/admin-panel/auth/crypto/tokenHash.js';
 import {
   generateRefreshToken,
   signAccessToken,
   verifyAccessToken,
   type AccessTokenClaims,
-} from '../src/modules/auth/crypto/tokens.js';
+} from '../src/modules/admin-panel/auth/crypto/tokens.js';
 import {
   beginTotpEnrollment,
   decryptTotpSecret,
   encryptTotpSecret,
   verifyTotpCode,
-} from '../src/modules/auth/crypto/totp.js';
-import { normalizeEmail } from '../src/modules/auth/utils/email.js';
+} from '../src/modules/admin-panel/auth/crypto/totp.js';
+import { normalizeEmail } from '../src/modules/admin-panel/auth/utils/email.js';
 import {
   expandRolePermissions,
   hasPermission,

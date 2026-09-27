@@ -1,10 +1,10 @@
 import { randomBytes } from 'node:crypto';
-import { getPrisma } from '../../../config/db.js';
-import { getEnv } from '../../../config/env.js';
-import { logger } from '../../../config/logger.js';
-import { badRequest, unauthorized } from '../../../shared/errors/AppError.js';
-import type { RequestMeta } from '../../../shared/utils/requestMeta.js';
-import { getMailer } from '../../../infra/mail/mailer.js';
+import { getPrisma } from '../../../../config/db.js';
+import { getEnv } from '../../../../config/env.js';
+import { logger } from '../../../../config/logger.js';
+import { badRequest, unauthorized } from '../../../../shared/errors/AppError.js';
+import type { RequestMeta } from '../../../../shared/utils/requestMeta.js';
+import { getMailer } from '../../../../infra/mail/mailer.js';
 import { hashSecret, verifySecret } from '../crypto/password.js';
 import { hashToken } from '../crypto/tokenHash.js';
 import { normalizeEmail } from '../utils/email.js';

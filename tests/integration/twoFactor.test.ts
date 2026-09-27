@@ -27,13 +27,20 @@ afterAll(async () => {
 });
 
 describe('TOTP two-factor authentication', () => {
-  it('enroll → confirm → verify yields a working access token', async () => {
+  it('authed enroll → confirm → login challenges with TOTP → verify works', async () => {
     const app = createApp();
-    const pending = await passwordStep(app, EMAIL, PASSWORD);
+
+    // Fresh admin: direct session, TOTP enrolled from the Security page.
+    const direct = await request(app)
+      .post('/api/v1/admin/auth/login')
+      .send({ email: EMAIL, password: PASSWORD });
+    expect(direct.body.data.requires2fa).toBe(false);
+    const token = direct.body.data.accessToken as string;
 
     const enroll = await request(app)
-      .post('/api/v1/admin/auth/2fa/enroll')
-      .send({ pendingToken: pending });
+      .post('/api/v1/admin/auth/2fa/totp/enroll')
+      .set(authHeader(token))
+      .send({});
     expect(enroll.status).toBe(200);
     expect(enroll.body.data.qrDataUrl.startsWith('data:image/png;base64,')).toBe(true);
     expect(enroll.body.data.recoveryCodes).toHaveLength(10);
@@ -41,26 +48,64 @@ describe('TOTP two-factor authentication', () => {
 
     const id = await adminIdFor(EMAIL);
     const confirm = await request(app)
-      .post('/api/v1/admin/auth/2fa/confirm')
-      .send({ pendingToken: pending, code: await currentTotpCode(id) });
+      .post('/api/v1/admin/auth/2fa/totp/confirm')
+      .set(authHeader(token))
+      .send({ code: await currentTotpCode(id) });
     expect(confirm.status).toBe(200);
 
     const enabled = await getPrisma().adminUser.findUniqueOrThrow({ where: { id } });
     expect(enabled.totpEnabled).toBe(true);
+
+    // Next login challenges with TOTP.
+    const pending = await passwordStep(app, EMAIL, PASSWORD);
+    const verify = await request(app)
+      .post('/api/v1/admin/auth/2fa/verify')
+      .send({ pendingToken: pending, code: await currentTotpCode(id) });
+    expect(verify.status).toBe(200);
+    expect(verify.body.data.method).toBe('totp');
 
     // Pending token alone cannot touch protected routes.
     const denied = await request(app).get('/api/v1/admin/roles').set(authHeader(pending));
     expect(denied.status).toBe(401);
   });
 
+  it('legacy pending-token enroll → confirm still works once TOTP is on', async () => {
+    const app = createApp();
+    await fullLogin(app, EMAIL, PASSWORD);
+    const id = await adminIdFor(EMAIL);
+    const pending = await passwordStep(app, EMAIL, PASSWORD);
+
+    // Re-enrollment rotates the secret; the fresh code confirms it.
+    const enroll = await request(app)
+      .post('/api/v1/admin/auth/2fa/enroll')
+      .send({ pendingToken: pending });
+    expect(enroll.status).toBe(200);
+    expect(enroll.body.data.recoveryCodes).toHaveLength(10);
+
+    const confirm = await request(app)
+      .post('/api/v1/admin/auth/2fa/confirm')
+      .send({ pendingToken: pending, code: await currentTotpCode(id) });
+    expect(confirm.status).toBe(200);
+
+    const verify = await request(app)
+      .post('/api/v1/admin/auth/2fa/verify')
+      .send({ pendingToken: pending, code: await currentTotpCode(id) });
+    expect(verify.status).toBe(200);
+    expect(verify.body.data.method).toBe('totp');
+  });
+
   it('wrong TOTP code fails without enabling 2FA', async () => {
     const app = createApp();
-    const pending = await passwordStep(app, EMAIL, PASSWORD);
-    await request(app).post('/api/v1/admin/auth/2fa/enroll').send({ pendingToken: pending });
+    const direct = await request(app)
+      .post('/api/v1/admin/auth/login')
+      .send({ email: EMAIL, password: PASSWORD });
+    const token = direct.body.data.accessToken as string;
+    await request(app).post('/api/v1/admin/auth/2fa/totp/enroll').set(authHeader(token)).send({});
 
     const bad = await request(app)
-      .post('/api/v1/admin/auth/2fa/confirm')
-      .send({ pendingToken: pending, code: '000000' });
+      .post('/api/v1/admin/auth/2fa/totp/confirm')
+      .set(authHeader(token))
+      .send({ code: '000000' });
     expect(bad.status).toBe(401);
 
     const id = await adminIdFor(EMAIL);

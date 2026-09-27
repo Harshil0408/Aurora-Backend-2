@@ -1,11 +1,11 @@
 import { randomBytes } from 'node:crypto';
-import { getPrisma } from '../../../config/db.js';
-import { logger } from '../../../config/logger.js';
-import { unauthorized } from '../../../shared/errors/AppError.js';
-import type { RequestMeta } from '../../../shared/utils/requestMeta.js';
+import { getPrisma } from '../../../../config/db.js';
+import { logger } from '../../../../config/logger.js';
+import { unauthorized } from '../../../../shared/errors/AppError.js';
+import type { RequestMeta } from '../../../../shared/utils/requestMeta.js';
 import { hashToken } from '../crypto/tokenHash.js';
 import { generateRefreshToken, signAccessToken } from '../crypto/tokens.js';
-import { getEffectivePermissions } from '../../rbac/rbac.service.js';
+import { getEffectivePermissions } from '../../../rbac/rbac.service.js';
 import { logLoginEvent } from './loginActivity.service.js';
 
 export const REFRESH_COOKIE_NAME = 'admin_rt';

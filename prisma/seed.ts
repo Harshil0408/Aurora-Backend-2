@@ -12,8 +12,8 @@ import 'dotenv/config';
 import { getEnv } from '../src/config/env.js';
 import { logger } from '../src/config/logger.js';
 import { getPrisma } from '../src/config/db.js';
-import { hashSecret } from '../src/modules/auth/crypto/password.js';
-import { normalizeEmail } from '../src/modules/auth/utils/email.js';
+import { hashSecret } from '../src/modules/admin-panel/auth/crypto/password.js';
+import { normalizeEmail } from '../src/modules/admin-panel/auth/utils/email.js';
 import {
   ALL_PERMISSIONS,
   DEFAULT_ROLE_PERMISSIONS,

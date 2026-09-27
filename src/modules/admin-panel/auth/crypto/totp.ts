@@ -1,11 +1,10 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import * as OTPAuth from 'otpauth';
-import { getEnv } from '../../../config/env.js';
-import { logger } from '../../../config/logger.js';
+import { getEnv } from '../../../../config/env.js';
+import { logger } from '../../../../config/logger.js';
 
 const TOTP_ISSUER = 'EComm Admin';
 const TOTP_WINDOW = 1; // ±30s clock skew tolerance
-
 
 function getKey(): Buffer {
   const raw = getEnv().TOTP_ENCRYPTION_KEY;

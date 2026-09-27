@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import jwt, { type JwtPayload } from 'jsonwebtoken';
 import { z } from 'zod';
-import { getEnv } from '../../../config/env.js';
+import { getEnv } from '../../../../config/env.js';
 
 export interface AccessTokenClaims {
   sub: string;

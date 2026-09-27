@@ -2,13 +2,17 @@ import { beforeAll, beforeEach, afterAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createApp } from '../../src/app.js';
 import { getPrisma } from '../../src/config/db.js';
-import { verifyAccessToken, verifyPendingToken } from '../../src/modules/auth/crypto/tokens.js';
+import {
+  verifyAccessToken,
+  verifyPendingToken,
+} from '../../src/modules/admin-panel/auth/crypto/tokens.js';
 import {
   closeTestDatabase,
   createTestAdmin,
   ensureTestDatabase,
   truncateTestTables,
 } from './helpers.js';
+import { currentTotpCode } from './authFlow.js';
 
 const EMAIL = 'admin@local.test';
 const PASSWORD = 'Correct-123!';
@@ -27,14 +31,54 @@ afterAll(async () => {
 });
 
 describe('POST /api/v1/admin/auth/login', () => {
-  it('valid credentials return a 2FA-pending token (never a session)', async () => {
+  it('no 2FA method → direct login with credentials (session, never a pending token)', async () => {
     const app = createApp();
     const res = await request(app)
       .post('/api/v1/admin/auth/login')
       .send({ email: EMAIL, password: PASSWORD });
 
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ success: true, data: { requires2fa: true } });
+    expect(res.body).toMatchObject({ success: true, data: { requires2fa: false } });
+    expect(typeof res.body.data.accessToken).toBe('string');
+    expect(res.body.data).not.toHaveProperty('pendingToken');
+
+    // Refresh cookie is set for the direct session…
+    const cookies = res.headers['set-cookie'] as unknown as string[];
+    expect(cookies.some((c) => c.startsWith('admin_rt='))).toBe(true);
+
+    // …and the access token works immediately.
+    const me = await request(app)
+      .get('/api/v1/admin/auth/me')
+      .set('Authorization', `Bearer ${res.body.data.accessToken as string}`);
+    expect(me.status).toBe(200);
+    expect(me.body.data.email).toBe(EMAIL);
+
+    const verified = verifyAccessToken(res.body.data.accessToken as string);
+    expect(verified.valid).toBe(true);
+  });
+
+  it('TOTP-enabled admin gets a pending token with channel totp (never a session)', async () => {
+    const app = createApp();
+    const direct = await request(app)
+      .post('/api/v1/admin/auth/login')
+      .send({ email: EMAIL, password: PASSWORD });
+    const token = direct.body.data.accessToken as string;
+    const id = (await getPrisma().adminUser.findFirstOrThrow()).id;
+    await request(app)
+      .post('/api/v1/admin/auth/2fa/totp/enroll')
+      .set('Authorization', `Bearer ${token}`)
+      .send({});
+    await request(app)
+      .post('/api/v1/admin/auth/2fa/totp/confirm')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ code: await currentTotpCode(id) });
+
+    const res = await request(app)
+      .post('/api/v1/admin/auth/login')
+      .send({ email: EMAIL, password: PASSWORD });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ success: true, data: { requires2fa: true, channel: 'totp' } });
     expect(typeof res.body.data.pendingToken).toBe('string');
     expect(res.body.data).not.toHaveProperty('accessToken');
     expect(res.body.data).not.toHaveProperty('refreshToken');

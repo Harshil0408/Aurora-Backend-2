@@ -5,8 +5,8 @@ import { asyncHandler } from '../../../../shared/utils/asyncHandler.js';
 import { getRequestMeta } from '../../../../shared/utils/requestMeta.js';
 import { PERMISSIONS } from '../../../rbac/permissions.js';
 import { isSuperAdmin } from '../../../rbac/rbac.service.js';
-import { getAuth, requireAuth } from '../../../auth/middleware/requireAuth.js';
-import { requirePerm } from '../../../auth/middleware/requirePerm.js';
+import { getAuth, requireAuth } from '../../auth/middleware/requireAuth.js';
+import { requirePerm } from '../../auth/middleware/requirePerm.js';
 import {
   createRole,
   getRoleByKey,

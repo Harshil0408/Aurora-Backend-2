@@ -2,8 +2,8 @@ import type {
   Prisma,
   PrismaClient,
   LoginEventType as PrismaLoginEvent,
-} from '../../../generated/prisma/client.js';
-import type { RequestMeta } from '../../../shared/utils/requestMeta.js';
+} from '../../../../generated/prisma/client.js';
+import type { RequestMeta } from '../../../../shared/utils/requestMeta.js';
 
 /** Security-event type = Prisma enum (single source, no drift). */
 export type LoginEvent = PrismaLoginEvent;

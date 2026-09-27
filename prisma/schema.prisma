@@ -30,6 +30,11 @@ model AdminUser {
   totpSecretEncrypted String?   @db.Text
   totpEnrolledAt      DateTime?
 
+  // 2FA via emailed one-time code (alternative to TOTP; either enables 2FA)
+  emailOtpEnabled    Boolean   @default(false)
+  emailOtpEnrolledAt DateTime?
+  emailOtps          AdminEmailOtp[]
+
   // Lockout / throttling counters
   failedLoginAttempts Int       @default(0)
   lockedUntil         DateTime?
@@ -163,6 +168,25 @@ model AdminPasswordResetToken {
   @@index([adminId])
   @@index([expiresAt])
   @@map("admin_password_reset_tokens")
+}
+
+// Short-lived emailed 2FA codes. The 6-digit code is Argon2id-hashed
+// (never plaintext), single-outstanding per admin, max 5 attempts, 10-min
+// TTL. Purposes: ENABLE (prove mailbox ownership) and LOGIN (2FA challenge).
+model AdminEmailOtp {
+  id        String    @id @default(cuid())
+  adminId   String
+  admin     AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  codeHash  String    @db.VarChar(255)
+  purpose   String    @db.VarChar(32)
+  attempts  Int       @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([adminId, createdAt])
+  @@index([expiresAt])
+  @@map("admin_email_otps")
 }
 
 model AdminLoginActivity {

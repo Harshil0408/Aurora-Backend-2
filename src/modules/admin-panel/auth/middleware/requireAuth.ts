@@ -1,8 +1,8 @@
 import type { NextFunction, Request, Response } from 'express';
-import { getPrisma } from '../../../config/db.js';
-import { forbidden, unauthorized } from '../../../shared/errors/AppError.js';
+import { getPrisma } from '../../../../config/db.js';
+import { forbidden, unauthorized } from '../../../../shared/errors/AppError.js';
 import { verifyAccessToken } from '../crypto/tokens.js';
-import { getEffectivePermissions } from '../../rbac/rbac.service.js';
+import { getEffectivePermissions } from '../../../rbac/rbac.service.js';
 
 export interface AuthContext {
   adminId: string;
@@ -17,7 +17,6 @@ declare global {
     }
   }
 }
-
 
 export function requireAuth(req: Request, _res: Response, next: NextFunction): void {
   void (async () => {

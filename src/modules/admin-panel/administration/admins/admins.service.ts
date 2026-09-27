@@ -1,8 +1,8 @@
 import { getPrisma } from '../../../../config/db.js';
 import { badRequest, conflict, forbidden, notFound } from '../../../../shared/errors/AppError.js';
 import type { RequestMeta } from '../../../../shared/utils/requestMeta.js';
-import { hashSecret } from '../../../auth/crypto/password.js';
-import { normalizeEmail } from '../../../auth/utils/email.js';
+import { hashSecret } from '../../auth/crypto/password.js';
+import { normalizeEmail } from '../../auth/utils/email.js';
 import { isSuperAdmin } from '../../../rbac/rbac.service.js';
 import { SUPER_ADMIN_ROLE_KEY } from '../../../rbac/permissions.js';
 import { recordAudit } from '../../../audit/audit.service.js';

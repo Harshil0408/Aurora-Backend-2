@@ -1,16 +1,23 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { getEnv } from '../../../config/env.js';
+import { getEnv } from '../../../../config/env.js';
 import {
   changePasswordHandler,
   confirm2fa,
+  confirmEmailOtpHandler,
+  confirmTotpAuthed,
   disable2fa,
+  disableEmailOtpHandler,
   enroll2fa,
+  enrollTotpAuthed,
   forgotPassword,
+  getMe,
   login,
   logout,
   logoutAll,
   refresh,
+  requestEmailOtpHandler,
+  resendEmailOtpHandler,
   resetPasswordHandler,
   verify2fa,
 } from '../controllers/auth.controller.js';
@@ -29,9 +36,16 @@ function loginLimiter(): ReturnType<typeof rateLimit> {
 }
 
 authRouter.post('/login', loginLimiter(), login);
+authRouter.get('/me', ...getMe);
 authRouter.post('/2fa/enroll', loginLimiter(), enroll2fa);
 authRouter.post('/2fa/confirm', loginLimiter(), confirm2fa);
 authRouter.post('/2fa/verify', loginLimiter(), verify2fa);
+authRouter.post('/2fa/totp/enroll', ...enrollTotpAuthed);
+authRouter.post('/2fa/totp/confirm', ...confirmTotpAuthed);
+authRouter.post('/2fa/email/request', loginLimiter(), ...requestEmailOtpHandler);
+authRouter.post('/2fa/email/confirm', loginLimiter(), ...confirmEmailOtpHandler);
+authRouter.post('/2fa/email/disable', ...disableEmailOtpHandler);
+authRouter.post('/2fa/email/resend', loginLimiter(), resendEmailOtpHandler);
 authRouter.post('/refresh', refresh);
 authRouter.post('/logout', ...logout);
 authRouter.post('/logout-all', ...logoutAll);

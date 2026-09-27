@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
-import { getPrisma } from '../../../config/db.js';
-import { forbidden, unauthorized } from '../../../shared/errors/AppError.js';
-import type { RequestMeta } from '../../../shared/utils/requestMeta.js';
+import { getPrisma } from '../../../../config/db.js';
+import { forbidden, unauthorized } from '../../../../shared/errors/AppError.js';
+import type { RequestMeta } from '../../../../shared/utils/requestMeta.js';
 import { verifySecret } from '../crypto/password.js';
 import {
   generateRecoveryCodes,
@@ -78,7 +78,7 @@ export async function confirmEnrollment(
   });
 }
 
-export type SecondFactorMethod = 'totp' | 'recovery';
+export type SecondFactorMethod = 'totp' | 'recovery' | 'email_otp';
 
 /**
  * Verify the second factor. TOTP first, then single-use recovery codes

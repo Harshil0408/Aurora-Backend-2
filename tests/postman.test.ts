@@ -49,7 +49,7 @@ describe('postman export', () => {
     const auth = collection.item.find((f) => f.name === 'auth');
     const scriptOf = (namePart: string): string =>
       (auth?.item.find((i) => i.name.includes(namePart))?.event?.[0]?.script.exec ?? []).join('\n');
-    expect(scriptOf('password login')).toContain("set('pendingToken'");
+    expect(scriptOf('Password login')).toContain("set('pendingToken'");
     expect(scriptOf('verify TOTP')).toContain("set('accessToken'");
     expect(scriptOf('Rotate refresh')).toContain("set('accessToken'");
   });

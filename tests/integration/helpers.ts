@@ -2,14 +2,15 @@ import { execSync } from 'node:child_process';
 import mariadb from 'mariadb';
 import { disconnectDatabase, getPrisma } from '../../src/config/db.js';
 import { resetEnvCache } from '../../src/config/env.js';
-import { hashSecret } from '../../src/modules/auth/crypto/password.js';
-import { normalizeEmail } from '../../src/modules/auth/utils/email.js';
+import { hashSecret } from '../../src/modules/admin-panel/auth/crypto/password.js';
+import { normalizeEmail } from '../../src/modules/admin-panel/auth/utils/email.js';
 
 const TABLES = [
   'admin_audit_log',
   'admin_login_activity',
   'admin_password_history',
   'admin_password_reset_tokens',
+  'admin_email_otps',
   'admin_recovery_codes',
   'admin_role_assignments',
   'admin_role_permissions',

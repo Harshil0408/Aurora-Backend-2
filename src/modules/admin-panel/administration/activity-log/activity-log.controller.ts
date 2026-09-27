@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { paginated } from '../../../../shared/utils/ApiResponse.js';
 import { asyncHandler } from '../../../../shared/utils/asyncHandler.js';
 import { PERMISSIONS } from '../../../rbac/permissions.js';
-import { requireAuth } from '../../../auth/middleware/requireAuth.js';
-import { requirePerm } from '../../../auth/middleware/requirePerm.js';
+import { requireAuth } from '../../auth/middleware/requireAuth.js';
+import { requirePerm } from '../../auth/middleware/requirePerm.js';
 import { paginationSchema } from '../../../../shared/validation/pagination.js';
 import { queryAuditLog } from './activity-log.service.js';
 

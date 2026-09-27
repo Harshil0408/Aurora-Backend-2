@@ -2,8 +2,8 @@ import { getPrisma } from '../../../../config/db.js';
 import { forbidden } from '../../../../shared/errors/AppError.js';
 import type { RequestMeta } from '../../../../shared/utils/requestMeta.js';
 import { PERMISSIONS, hasPermission } from '../../../rbac/permissions.js';
-import { listActiveSessions, revokeSession } from '../../../auth/services/session.service.js';
-import type { ActiveSessionView } from '../../../auth/services/session.service.js';
+import { listActiveSessions, revokeSession } from '../../auth/services/session.service.js';
+import type { ActiveSessionView } from '../../auth/services/session.service.js';
 
 /** "My sessions" table — own active sessions with current-session highlight. */
 export async function listMySessions(

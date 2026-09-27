@@ -1,8 +1,8 @@
 import type { NextFunction, Request, Response } from 'express';
-import { forbidden } from '../../../shared/errors/AppError.js';
-import type { PermissionKey } from '../../rbac/permissions.js';
+import { forbidden } from '../../../../shared/errors/AppError.js';
+import type { PermissionKey } from '../../../rbac/permissions.js';
 import { getAuth } from './requireAuth.js';
-import { hasPermission } from '../../rbac/permissions.js';
+import { hasPermission } from '../../../rbac/permissions.js';
 
 /** Route guard: caller must hold the permission (super admin bypasses). */
 export function requirePerm(permission: PermissionKey) {

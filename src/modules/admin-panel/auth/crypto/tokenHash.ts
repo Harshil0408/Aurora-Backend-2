@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { getEnv } from '../../../config/env.js';
+import { getEnv } from '../../../../config/env.js';
 
 export function hashToken(token: string): string {
   const env = getEnv();

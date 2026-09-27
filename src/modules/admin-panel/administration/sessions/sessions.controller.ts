@@ -2,7 +2,7 @@ import type { Request, Response } from 'express';
 import { ok, paginated } from '../../../../shared/utils/ApiResponse.js';
 import { asyncHandler } from '../../../../shared/utils/asyncHandler.js';
 import { getRequestMeta } from '../../../../shared/utils/requestMeta.js';
-import { getAuth, requireAuth } from '../../../auth/middleware/requireAuth.js';
+import { getAuth, requireAuth } from '../../auth/middleware/requireAuth.js';
 import { paginationSchema } from '../../../../shared/validation/pagination.js';
 import { sessionIdParams } from './sessions.schemas.js';
 import { listMySessions, revokeSessionById } from './sessions.service.js';

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildPasswordResetMail,
   buildPasswordResetUrl,
-} from '../src/modules/auth/utils/resetMail.js';
+} from '../src/modules/admin-panel/auth/utils/resetMail.js';
 
 describe('password reset mail', () => {
   it('builds the reset URL from origin + token', () => {
