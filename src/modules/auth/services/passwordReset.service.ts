@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { getPrisma } from '../../../config/db.js';
+import { getEnv } from '../../../config/env.js';
 import { logger } from '../../../config/logger.js';
 import { badRequest, unauthorized } from '../../../shared/errors/AppError.js';
 import type { RequestMeta } from '../../../shared/utils/requestMeta.js';
@@ -7,6 +8,7 @@ import { getMailer } from '../../../infra/mail/mailer.js';
 import { hashSecret, verifySecret } from '../crypto/password.js';
 import { hashToken } from '../crypto/tokenHash.js';
 import { normalizeEmail } from '../utils/email.js';
+import { buildPasswordResetMail, buildPasswordResetUrl } from '../utils/resetMail.js';
 import { logLoginEvent } from './loginActivity.service.js';
 import { revokeAllSessions } from './session.service.js';
 
@@ -36,10 +38,13 @@ export async function requestPasswordReset(email: string, meta: RequestMeta): Pr
       await logLoginEvent(tx, { adminId: admin.id, event: 'PASSWORD_RESET_REQUESTED', meta });
     });
     try {
+      const resetUrl = buildPasswordResetUrl(getEnv().FRONTEND_ORIGIN, token);
+      const mail = buildPasswordResetMail(resetUrl, token);
       await getMailer().send({
         to: admin.email,
-        subject: 'Admin password reset',
-        text: `Use this one-time token within 1 hour: ${token}`,
+        subject: mail.subject,
+        text: mail.text,
+        html: mail.html,
       });
     } catch (err: unknown) {
       // Mail provider outage must not reveal account existence (500 vs 200)

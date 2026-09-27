@@ -6,13 +6,13 @@ export interface SecurityMail {
   to: string;
   subject: string;
   text: string;
+  html?: string;
 }
 
 export interface Mailer {
   send(mail: SecurityMail): Promise<void>;
 }
 
-/** Dev/test fallback: logs instead of sending. */
 class LogMailer implements Mailer {
   async send(mail: SecurityMail): Promise<void> {
     logger.info('Outgoing security mail (logged, not sent)', {
@@ -39,10 +39,16 @@ class SmtpMailer implements Mailer {
       secure: env.SMTP_SECURE,
       // Gmail displays App Passwords with spaces; SMTP wants them joined.
       auth: { user: env.SMTP_USER, pass: env.SMTP_PASS?.replace(/\s+/g, '') },
+      // Corporate proxies / AV TLS inspection present a self-signed cert,
+      // which Node rejects by default. Opt-out only via SMTP_TLS_INSECURE.
+      tls: env.SMTP_TLS_INSECURE ? { rejectUnauthorized: false } : undefined,
       connectionTimeout: 10_000,
       greetingTimeout: 10_000,
       socketTimeout: 15_000,
     });
+    if (env.SMTP_TLS_INSECURE) {
+      logger.warn('SMTP TLS verification disabled (SMTP_TLS_INSECURE=true) — dev networks only');
+    }
     this.from = env.MAIL_FROM || (env.SMTP_USER as string);
   }
 
@@ -52,6 +58,7 @@ class SmtpMailer implements Mailer {
       to: mail.to,
       subject: mail.subject,
       text: mail.text,
+      html: mail.html,
     });
     logger.info('Security mail sent via SMTP', { to: mail.to, subject: mail.subject });
   }

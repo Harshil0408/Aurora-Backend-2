@@ -29,4 +29,12 @@ describe('mailer selection', () => {
     process.env['SMTP_PASS'] = 'app-password';
     expect(getMailer().constructor.name).toBe('SmtpMailer');
   });
+
+  it('accepts SMTP_TLS_INSECURE=true without breaking mailer selection', () => {
+    process.env['SMTP_HOST'] = 'smtp.gmail.com';
+    process.env['SMTP_USER'] = 'user@gmail.com';
+    process.env['SMTP_PASS'] = 'app-password';
+    process.env['SMTP_TLS_INSECURE'] = 'true';
+    expect(getMailer().constructor.name).toBe('SmtpMailer');
+  });
 });

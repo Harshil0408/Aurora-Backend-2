@@ -111,7 +111,6 @@ interface StatusInput {
   meta: RequestMeta;
 }
 
-/** Guards: never yourself; never disable the last super admin. */
 export async function setAdminStatus(input: StatusInput): Promise<void> {
   if (input.targetId === input.actorId) throw badRequest('You cannot change your own status');
   const prisma = getPrisma();
@@ -150,10 +149,6 @@ interface RolesInput {
   meta: RequestMeta;
 }
 
-/**
- * Replace an admin's roles. Guards: super_admin grants need a super-admin
- * caller; you cannot strip your OWN super_admin role (self-lockout).
- */
 export async function setAdminRoles(input: RolesInput): Promise<void> {
   if (input.roleKeys.includes(SUPER_ADMIN_ROLE_KEY) && !input.actorIsSuperAdmin) {
     throw forbidden('Only a Super Admin can grant the super_admin role');
@@ -198,8 +193,6 @@ export async function setAdminRoles(input: RolesInput): Promise<void> {
     });
   });
 }
-
-// --- Roles catalog ---
 
 export async function listRoles(): Promise<{ key: string; name: string; permissions: string[] }[]> {
   const prisma = getPrisma();
@@ -249,7 +242,6 @@ interface RolePermsInput {
   meta: RequestMeta;
 }
 
-/** Only Super Admins may touch the super_admin role's permissions. */
 export async function setRolePermissions(input: RolePermsInput): Promise<void> {
   if (input.roleKey === SUPER_ADMIN_ROLE_KEY && !input.actorIsSuperAdmin) {
     throw forbidden('Only a Super Admin can modify the super_admin role');
