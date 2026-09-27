@@ -27,7 +27,8 @@
     "prisma:studio": "prisma studio",
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
-    "docker:logs": "docker compose logs -f api"
+    "docker:logs": "docker compose logs -f api",
+    "postman:export": "tsx scripts/export-postman.mjs"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.1",

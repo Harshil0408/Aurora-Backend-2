@@ -1,11 +1,11 @@
-import { getPrisma } from '../../../config/db.js';
-import { badRequest, conflict, forbidden, notFound } from '../../../shared/errors/AppError.js';
-import type { RequestMeta } from '../../../shared/utils/requestMeta.js';
-import { hashSecret } from '../../auth/crypto/password.js';
-import { normalizeEmail } from '../../auth/utils/email.js';
-import { isSuperAdmin } from '../../rbac/rbac.service.js';
-import { SUPER_ADMIN_ROLE_KEY } from '../../rbac/permissions.js';
-import { recordAudit } from '../../audit/audit.service.js';
+import { getPrisma } from '../../../../config/db.js';
+import { badRequest, conflict, forbidden, notFound } from '../../../../shared/errors/AppError.js';
+import type { RequestMeta } from '../../../../shared/utils/requestMeta.js';
+import { hashSecret } from '../../../auth/crypto/password.js';
+import { normalizeEmail } from '../../../auth/utils/email.js';
+import { isSuperAdmin } from '../../../rbac/rbac.service.js';
+import { SUPER_ADMIN_ROLE_KEY } from '../../../rbac/permissions.js';
+import { recordAudit } from '../../../audit/audit.service.js';
 
 export interface CreateAdminInput {
   email: string;
@@ -192,126 +192,6 @@ export async function setAdminRoles(input: RolesInput): Promise<void> {
       meta: input.meta,
     });
   });
-}
-
-export async function listRoles(): Promise<{ key: string; name: string; permissions: string[] }[]> {
-  const prisma = getPrisma();
-  const roles = await prisma.adminRole.findMany({
-    include: { permissions: { include: { permission: true } } },
-    orderBy: { key: 'asc' },
-  });
-  return roles.map((r) => ({
-    key: r.key,
-    name: r.name,
-    permissions: r.permissions.map((p) => p.permission.key),
-  }));
-}
-
-interface CreateRoleInput {
-  key: string;
-  name: string;
-  description?: string | undefined;
-  actorId: string;
-  meta: RequestMeta;
-}
-
-export async function createRole(input: CreateRoleInput): Promise<void> {
-  const prisma = getPrisma();
-  const existing = await prisma.adminRole.findUnique({ where: { key: input.key } });
-  if (existing) throw conflict('Role already exists');
-  await prisma.$transaction(async (tx) => {
-    await tx.adminRole.create({
-      data: { key: input.key, name: input.name, description: input.description ?? null },
-    });
-    await recordAudit(tx, {
-      actorId: input.actorId,
-      action: 'role.create',
-      resourceType: 'role',
-      resourceId: input.key,
-      after: { key: input.key, name: input.name },
-      meta: input.meta,
-    });
-  });
-}
-
-interface RolePermsInput {
-  roleKey: string;
-  permissionKeys: string[];
-  actorId: string;
-  actorIsSuperAdmin: boolean;
-  meta: RequestMeta;
-}
-
-export async function setRolePermissions(input: RolePermsInput): Promise<void> {
-  if (input.roleKey === SUPER_ADMIN_ROLE_KEY && !input.actorIsSuperAdmin) {
-    throw forbidden('Only a Super Admin can modify the super_admin role');
-  }
-  const prisma = getPrisma();
-  const role = await prisma.adminRole.findUnique({ where: { key: input.roleKey } });
-  if (!role) throw notFound('Role not found');
-  if (role.isSystem && input.roleKey !== SUPER_ADMIN_ROLE_KEY) {
-    // System roles keep their identity; permission edits still allowed.
-  }
-  const perms = await prisma.permission.findMany({
-    where: { key: { in: input.permissionKeys } },
-  });
-  if (perms.length !== input.permissionKeys.length) throw badRequest('Unknown permission key');
-
-  const before = (
-    await prisma.adminRolePermission.findMany({
-      where: { roleId: role.id },
-      include: { permission: true },
-    })
-  ).map((p) => p.permission.key);
-
-  await prisma.$transaction(async (tx) => {
-    await tx.adminRolePermission.deleteMany({ where: { roleId: role.id } });
-    await tx.adminRolePermission.createMany({
-      data: perms.map((p) => ({ roleId: role.id, permissionId: p.id })),
-    });
-    await recordAudit(tx, {
-      actorId: input.actorId,
-      action: 'role.update',
-      resourceType: 'role',
-      resourceId: input.roleKey,
-      before: { permissions: before },
-      after: { permissions: input.permissionKeys },
-      meta: input.meta,
-    });
-  });
-}
-
-export async function queryAuditLog(
-  page: number,
-  limit: number,
-  action?: string,
-): Promise<{ data: unknown[]; total: number }> {
-  const prisma = getPrisma();
-  const where = action ? { action } : {};
-  const [rows, total] = await Promise.all([
-    prisma.adminAuditLog.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * limit,
-      take: limit,
-    }),
-    prisma.adminAuditLog.count({ where }),
-  ]);
-  return {
-    data: rows.map((r) => ({
-      id: r.id,
-      actorId: r.actorId,
-      action: r.action,
-      resourceType: r.resourceType,
-      resourceId: r.resourceId,
-      before: r.before,
-      after: r.after,
-      ipAddress: r.ipAddress,
-      requestId: r.requestId,
-      createdAt: r.createdAt,
-    })),
-    total,
-  };
 }
 
 function toView(

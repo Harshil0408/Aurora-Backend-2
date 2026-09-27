@@ -7,13 +7,11 @@ import {
   disable2fa,
   enroll2fa,
   forgotPassword,
-  listSessions,
   login,
   logout,
   logoutAll,
   refresh,
   resetPasswordHandler,
-  revokeOneSession,
   verify2fa,
 } from '../controllers/auth.controller.js';
 
@@ -42,8 +40,6 @@ authRouter.post('/2fa/verify', loginLimiter(), verify2fa);
 authRouter.post('/refresh', refresh);
 authRouter.post('/logout', ...logout);
 authRouter.post('/logout-all', ...logoutAll);
-authRouter.get('/sessions', ...listSessions);
-authRouter.delete('/sessions/:id', ...revokeOneSession);
 authRouter.post('/forgot-password', loginLimiter(), forgotPassword);
 authRouter.post('/reset-password', loginLimiter(), resetPasswordHandler);
 authRouter.post('/change-password', ...changePasswordHandler);

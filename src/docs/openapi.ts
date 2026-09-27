@@ -112,6 +112,54 @@ export const openApiSpec = {
           },
         },
       },
+      CreateAdminRequest: {
+        type: 'object',
+        required: ['email', 'password', 'roleKeys'],
+        properties: {
+          email: { type: 'string', format: 'email', example: 'ops@local.test' },
+          password: { type: 'string', minLength: 12, example: 'Temp-Password-123!' },
+          roleKeys: { type: 'array', items: { type: 'string' }, example: ['support'] },
+        },
+      },
+      SetStatusRequest: {
+        type: 'object',
+        required: ['status'],
+        properties: { status: { type: 'string', enum: ['ACTIVE', 'SUSPENDED', 'DISABLED'] } },
+      },
+      SetRolesRequest: {
+        type: 'object',
+        required: ['roleKeys'],
+        properties: {
+          roleKeys: { type: 'array', items: { type: 'string' }, example: ['sub_admin'] },
+        },
+      },
+      CreateRoleRequest: {
+        type: 'object',
+        required: ['key', 'name'],
+        properties: {
+          key: {
+            type: 'string',
+            example: 'billing-analyst',
+            description: 'Slug format (lowercase-hyphens). Permanent — can never be renamed.',
+          },
+          name: { type: 'string', example: 'Billing Analyst' },
+          description: { type: 'string', example: 'Read-only billing reports' },
+        },
+      },
+      UpdateRoleRequest: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', example: 'Billing Analyst' },
+          description: { type: 'string', nullable: true },
+        },
+      },
+      SetPermissionsRequest: {
+        type: 'object',
+        required: ['permissionKeys'],
+        properties: {
+          permissionKeys: { type: 'array', items: { type: 'string' }, example: ['admin.read'] },
+        },
+      },
     },
   },
   paths: {
@@ -348,6 +396,12 @@ export const openApiSpec = {
         tags: ['admin'],
         summary: 'Create admin (perm: admin.create; super_admin grants need Super Admin)',
         security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': { schema: { $ref: '#/components/schemas/CreateAdminRequest' } },
+          },
+        },
         responses: {
           '201': { description: 'Created' },
           '403': { description: 'Escalation blocked' },
@@ -361,6 +415,12 @@ export const openApiSpec = {
         summary: 'Suspend/disable/reactivate (perm: admin.suspend; never self or last Super Admin)',
         security: [{ bearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': { schema: { $ref: '#/components/schemas/SetStatusRequest' } },
+          },
+        },
         responses: { '200': { description: 'Updated' } },
       },
     },
@@ -370,7 +430,23 @@ export const openApiSpec = {
         summary: 'Replace roles (perm: role.assign; escalation + self-lockout guarded)',
         security: [{ bearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': { schema: { $ref: '#/components/schemas/SetRolesRequest' } },
+          },
+        },
         responses: { '200': { description: 'Updated' } },
+      },
+    },
+    '/admin/permissions': {
+      get: {
+        tags: ['admin'],
+        summary: 'Grouped permission catalog for the checkbox matrix (perm: role.read)',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': { description: 'Permission groups (Admins, Roles, Activity, Sessions)' },
+        },
       },
     },
     '/admin/roles': {
@@ -382,9 +458,38 @@ export const openApiSpec = {
       },
       post: {
         tags: ['admin'],
-        summary: 'Create role (perm: role.create)',
+        summary: 'Create role with zero permissions (perm: role.create; key is a permanent slug)',
         security: [{ bearerAuth: [] }],
-        responses: { '201': { description: 'Created' } },
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': { schema: { $ref: '#/components/schemas/CreateRoleRequest' } },
+          },
+        },
+        responses: { '201': { description: 'Created role (assign permissions next)' } },
+      },
+    },
+    '/admin/roles/{key}': {
+      get: {
+        tags: ['admin'],
+        summary: 'Get one role with permissions (perm: role.read)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'key', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Role detail' }, '404': { description: 'Not found' } },
+      },
+      patch: {
+        tags: ['admin'],
+        summary:
+          'Edit role name/description only — key is permanent, no delete (perm: role.update; super_admin is Super-Admin-only)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'key', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': { schema: { $ref: '#/components/schemas/UpdateRoleRequest' } },
+          },
+        },
+        responses: { '200': { description: 'Updated role' } },
       },
     },
     '/admin/roles/{key}/permissions': {
@@ -394,6 +499,12 @@ export const openApiSpec = {
           'Replace role permissions (perm: role.update; super_admin role is Super-Admin-only)',
         security: [{ bearerAuth: [] }],
         parameters: [{ name: 'key', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': { schema: { $ref: '#/components/schemas/SetPermissionsRequest' } },
+          },
+        },
         responses: { '200': { description: 'Updated' } },
       },
     },

@@ -9,7 +9,8 @@ import { requestId } from './shared/middleware/requestId.js';
 import { requestLogger } from './shared/middleware/requestLogger.js';
 import { healthRouter } from './modules/health/health.routes.js';
 import { authRouter } from './modules/auth/routes/auth.routes.js';
-import { adminRouter } from './modules/admin/routes/admin.routes.js';
+import { administrationRouter } from './modules/admin-panel/administration/administration.routes.js';
+import { adminSessionsRouter } from './modules/admin-panel/administration/sessions/sessions.routes.js';
 import { docsRouter } from './docs/docs.routes.js';
 
 export function createApp(): Express {
@@ -45,7 +46,11 @@ export function createApp(): Express {
 
   app.use(`${env.API_PREFIX}/health`, healthRouter);
   app.use(`${env.API_PREFIX}/admin/auth`, authRouter);
-  app.use(`${env.API_PREFIX}/admin`, adminRouter);
+  // Sessions screen ("My sessions") — same URLs as before, code lives in
+  // the administration group.
+  app.use(`${env.API_PREFIX}/admin/auth`, adminSessionsRouter);
+  // Administration group: Admins, Roles & Permissions, Activity Log.
+  app.use(`${env.API_PREFIX}/admin`, administrationRouter);
   app.use('/api/docs', docsRouter);
 
   app.use(notFound);

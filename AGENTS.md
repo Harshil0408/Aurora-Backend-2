@@ -5,7 +5,8 @@ Modular monolith: Express 5 + TypeScript (NodeNext ESM) + Prisma 7 + MySQL 8 + R
 ## Entrypoints & layout
 
 - `src/server.ts` — listen + graceful shutdown (DB/Redis disconnect, 10s force-exit). `src/app.ts` — `createApp()` factory (all middleware/routes; use it in tests, not `server.ts`).
-- `src/modules/{auth,admin,rbac,audit,health}/` — domain code. `src/config/{env,db,redis}.ts` — infra singletons. `src/shared/middleware/` — requestId/logger/errorHandler. `src/docs/` — Swagger at `/api/docs`.
+- `src/modules/{auth,admin-panel,rbac,audit,health}/` — domain code. `src/config/{env,db,redis}.ts` — infra singletons. `src/shared/middleware/` — requestId/logger/errorHandler. `src/shared/validation/` — shared zod shapes (e.g. pagination). `src/docs/` — Swagger at `/api/docs`.
+- Module pattern (follow for every new panel/area): `src/modules/<panel>/<area>/<screen>/` with `<screen>.service.ts` + `<screen>.controller.ts` + `<screen>.routes.ts` + `<screen>.schemas.ts`, composed by `<area>.routes.ts`. Example: `admin-panel/administration/{admins,roles-permissions,activity-log,sessions}/`. Shared kernels (`rbac/` permission constants, `audit/` writer, `auth/` session mechanics) stay top-level and are imported by screen modules — never duplicated. Public URL paths must not change on a pure reorganization.
 - Prisma client is imported from `src/generated/prisma/client.js` (generated assets live in `src/generated/` and are copied to `dist/` at build — see below).
 - Prisma 7: datasource URL lives in `prisma.config.ts` via `env('DATABASE_URL')`, never in `schema.prisma`. Seed is `tsx prisma/seed.ts` (needs `SUPER_ADMIN_EMAIL` + `SUPER_ADMIN_PASSWORD` ≥12 chars to bootstrap a Super Admin).
 
@@ -25,3 +26,4 @@ Modular monolith: Express 5 + TypeScript (NodeNext ESM) + Prisma 7 + MySQL 8 + R
 - Outside local dev, `TOTP_ENCRYPTION_KEY` must be 64 hex chars (32 bytes). Mail is log-only unless `SMTP_HOST/USER/PASS` are all set (Gmail needs a 16-char App Password, not the login password).
 - Auth model: `POST /admin/auth/login` returns a 2FA-pending token, never a session — pending token drives enroll/confirm/verify, then access JWT + `admin_rt` cookie with rotation + reuse detection.
 - Imports must use `.js` suffixes (`./config/env.js`) for NodeNext; use `import type` where type-only (`verbatimModuleSyntax`). Prettier: single quotes, semicolons, 100-col.
+- API contract lives in `src/docs/openapi.ts` — edit it when routes/bodies change, then run `npm run postman:export` and commit `postman/` (live collection also served at `GET /api/docs/postman`).

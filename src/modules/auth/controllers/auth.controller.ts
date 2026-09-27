@@ -1,11 +1,9 @@
 import type { CookieOptions, Request, Response } from 'express';
-import { z } from 'zod';
 import { getEnv } from '../../../config/env.js';
-import { badRequest, forbidden, unauthorized } from '../../../shared/errors/AppError.js';
-import { ok, paginated } from '../../../shared/utils/ApiResponse.js';
+import { badRequest, unauthorized } from '../../../shared/errors/AppError.js';
+import { ok } from '../../../shared/utils/ApiResponse.js';
 import { asyncHandler } from '../../../shared/utils/asyncHandler.js';
 import { getRequestMeta } from '../../../shared/utils/requestMeta.js';
-import { PERMISSIONS, hasPermission } from '../../rbac/permissions.js';
 import { getEffectivePermissions } from '../../rbac/rbac.service.js';
 import { getPrisma } from '../../../config/db.js';
 import { verifyPendingToken } from '../crypto/tokens.js';
@@ -20,7 +18,6 @@ import {
   REFRESH_COOKIE_NAME,
   REFRESH_IDLE_MS,
   issueSession,
-  listActiveSessions,
   rotateSession,
   revokeAllSessions,
   revokeSession,
@@ -36,7 +33,6 @@ import {
   disableTwoFactorSchema,
   forgotPasswordSchema,
   loginSchema,
-  paginationSchema,
   pendingTokenSchema,
   resetPasswordSchema,
   totpCodeSchema,
@@ -161,42 +157,6 @@ export const logoutAll = [
     await revokeAllSessions(auth.adminId, getRequestMeta(req));
     clearRefreshCookie(res);
     res.status(200).json(ok({ loggedOut: true }));
-  }),
-];
-
-/** GET /auth/sessions — own active sessions (auth only; others are never listed here). */
-export const listSessions = [
-  requireAuth,
-  asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const auth = getAuth(req);
-    const { page, limit } = paginationSchema.parse(req.query);
-    const { data, total } = await listActiveSessions(auth.adminId, auth.sessionId, page, limit);
-    res.status(200).json(paginated(data, page, limit, total));
-  }),
-];
-
-const sessionIdParams = z.object({ id: z.string().min(1) });
-
-/** DELETE /auth/sessions/:id — own sessions always; others need session.revoke. */
-export const revokeOneSession = [
-  requireAuth,
-  asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const auth = getAuth(req);
-    const { id } = sessionIdParams.parse(req.params);
-    const prisma = getPrisma();
-    const target = await prisma.adminSession.findUnique({ where: { id } });
-    if (!target || target.revokedAt !== null) {
-      res.status(200).json(ok({ revoked: true }));
-      return;
-    }
-    if (
-      target.adminId !== auth.adminId &&
-      !hasPermission(auth.permissions, PERMISSIONS.SESSION_REVOKE)
-    ) {
-      throw forbidden('Insufficient permissions');
-    }
-    await revokeSession(id, target.adminId, getRequestMeta(req));
-    res.status(200).json(ok({ revoked: true }));
   }),
 ];
 

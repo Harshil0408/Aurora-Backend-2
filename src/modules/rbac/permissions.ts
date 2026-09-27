@@ -87,3 +87,92 @@ export function expandRolePermissions(roleKeys: readonly string[]): Set<Permissi
   }
   return out;
 }
+
+export interface PermissionGroup {
+  group: string;
+  label: string;
+  permissions: { key: PermissionKey; label: string; description: string }[];
+}
+
+/**
+ * Grouped catalog backing the Roles & Permissions checkbox matrix UI.
+ * Rows = roles, columns = permissions within each group. The UI renders
+ * one section per group with a Select-all-per-group toggle.
+ */
+export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
+  {
+    group: 'admins',
+    label: 'Admins',
+    permissions: [
+      {
+        key: PERMISSIONS.ADMIN_READ,
+        label: 'View admins',
+        description: 'List and view admin accounts',
+      },
+      {
+        key: PERMISSIONS.ADMIN_CREATE,
+        label: 'Create admins',
+        description: 'Create new admin accounts',
+      },
+      {
+        key: PERMISSIONS.ADMIN_UPDATE,
+        label: 'Edit admins',
+        description: 'Change status and edit admin accounts',
+      },
+      {
+        key: PERMISSIONS.ADMIN_SUSPEND,
+        label: 'Suspend admins',
+        description: 'Suspend, disable, or reactivate admins',
+      },
+    ],
+  },
+  {
+    group: 'roles',
+    label: 'Roles',
+    permissions: [
+      {
+        key: PERMISSIONS.ROLE_READ,
+        label: 'View roles',
+        description: 'List roles and their permissions',
+      },
+      {
+        key: PERMISSIONS.ROLE_CREATE,
+        label: 'Create roles',
+        description: 'Create new roles (start with zero permissions)',
+      },
+      {
+        key: PERMISSIONS.ROLE_UPDATE,
+        label: 'Edit permissions',
+        description: 'Assign or remove role permissions',
+      },
+      {
+        key: PERMISSIONS.ROLE_ASSIGN,
+        label: 'Assign roles',
+        description: 'Grant or revoke roles on admins',
+      },
+    ],
+  },
+  {
+    group: 'activity',
+    label: 'Activity',
+    permissions: [
+      {
+        key: PERMISSIONS.AUDIT_READ,
+        label: 'View activity log',
+        description: 'Read the admin audit trail',
+      },
+    ],
+  },
+  {
+    group: 'sessions',
+    label: 'Sessions',
+    permissions: [
+      { key: PERMISSIONS.SESSION_READ, label: 'View sessions', description: 'List admin sessions' },
+      {
+        key: PERMISSIONS.SESSION_REVOKE,
+        label: 'Revoke sessions',
+        description: 'Revoke any admin session',
+      },
+    ],
+  },
+];
