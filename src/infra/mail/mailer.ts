@@ -23,10 +23,6 @@ class LogMailer implements Mailer {
   }
 }
 
-/**
- * Real SMTP mailer (Gmail: smtp.gmail.com:587 + STARTTLS, or any provider).
- * Sends security mail; throws on delivery failure so callers can react.
- */
 class SmtpMailer implements Mailer {
   private readonly transporter: Transporter;
   private readonly from: string;
@@ -37,10 +33,7 @@ class SmtpMailer implements Mailer {
       host: env.SMTP_HOST,
       port: env.SMTP_PORT,
       secure: env.SMTP_SECURE,
-      // Gmail displays App Passwords with spaces; SMTP wants them joined.
       auth: { user: env.SMTP_USER, pass: env.SMTP_PASS?.replace(/\s+/g, '') },
-      // Corporate proxies / AV TLS inspection present a self-signed cert,
-      // which Node rejects by default. Opt-out only via SMTP_TLS_INSECURE.
       tls: env.SMTP_TLS_INSECURE ? { rejectUnauthorized: false } : undefined,
       connectionTimeout: 10_000,
       greetingTimeout: 10_000,
@@ -66,11 +59,6 @@ class SmtpMailer implements Mailer {
 
 let instance: Mailer | undefined;
 
-/**
- * SMTP mailer when SMTP_HOST/USER/PASS are configured, LogMailer otherwise.
- * Never throws at boot for missing mail config — auth flows must not depend
- * on the mail provider being up (forgot-password stays generic either way).
- */
 export function getMailer(): Mailer {
   if (!instance) {
     const env = getEnv();
@@ -84,12 +72,10 @@ export function getMailer(): Mailer {
   return instance;
 }
 
-/** Reset the cached mailer (tests + config reload). */
 export function resetMailer(): void {
   instance = undefined;
 }
 
-/** Test seam: replace the mailer and inspect sent mail. */
 export function setMailer(mailer: Mailer | undefined): void {
   instance = mailer ?? new LogMailer();
 }

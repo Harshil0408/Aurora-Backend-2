@@ -46,8 +46,6 @@ export async function createRole(input: CreateRoleInput): Promise<RoleView> {
   const prisma = getPrisma();
   const existing = await prisma.adminRole.findUnique({ where: { key: input.key } });
   if (existing) throw conflict('Role already exists');
-  // New roles intentionally start with ZERO permissions — the UI must
-  // immediately prompt to assign permissions after this call returns.
   const created = await prisma.$transaction(async (tx) => {
     const role = await tx.adminRole.create({
       data: { key: input.key, name: input.name, description: input.description ?? null },
@@ -75,12 +73,6 @@ interface UpdateRoleInput {
   meta: RequestMeta;
 }
 
-/**
- * Edit role metadata (display name / description only).
- * The key is permanent and can never be renamed — there is no key field
- * here by design. Editing the super_admin role is Super-Admin-only.
- * There is intentionally NO delete endpoint (roles are never deleted).
- */
 export async function updateRole(input: UpdateRoleInput): Promise<RoleView> {
   if (input.roleKey === SUPER_ADMIN_ROLE_KEY && !input.actorIsSuperAdmin) {
     throw forbidden('Only a Super Admin can modify the super_admin role');
@@ -115,7 +107,6 @@ export async function updateRole(input: UpdateRoleInput): Promise<RoleView> {
   return toRoleView(updated);
 }
 
-/** Grouped permission catalog for the checkbox-matrix UI (Select-all per group). */
 export async function listPermissionCatalog(): Promise<
   {
     group: string;
@@ -153,7 +144,6 @@ export async function setRolePermissions(input: RolePermsInput): Promise<void> {
   const role = await prisma.adminRole.findUnique({ where: { key: input.roleKey } });
   if (!role) throw notFound('Role not found');
   if (role.isSystem && input.roleKey !== SUPER_ADMIN_ROLE_KEY) {
-    // System roles keep their identity; permission edits still allowed.
   }
   const perms = await prisma.permission.findMany({
     where: { key: { in: input.permissionKeys } },

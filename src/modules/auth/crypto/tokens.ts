@@ -4,13 +4,9 @@ import { z } from 'zod';
 import { getEnv } from '../../../config/env.js';
 
 export interface AccessTokenClaims {
-  /** Admin id (subject). */
   sub: string;
-  /** Session id (refresh family row) — binds access token to a session. */
   sid: string;
-  /** Token version copied from admin — bump revokes all outstanding JWTs. */
   tv: number;
-  /** Granted permission keys (frozen at login; re-checked server-side for writes). */
   perms: string[];
 }
 
@@ -21,11 +17,6 @@ const claimsSchema = z.object({
   perms: z.array(z.string()),
 });
 
-/**
- * Short-lived (default 5 min) signed access token. Stateless verification;
- * revocation is enforced via `tv` (tokenVersion) + `sid` lookups on the
- * refresh path and for sensitive operations.
- */
 export function signAccessToken(claims: AccessTokenClaims): string {
   const env = getEnv();
   const parsed = claimsSchema.parse(claims);
@@ -62,7 +53,6 @@ export function verifyAccessToken(token: string): VerifyAccessResult {
   }
 }
 
-/** 256-bit opaque refresh token (base64url). Only its hash is ever stored. */
 export function generateRefreshToken(): string {
   return randomBytes(32).toString('base64url');
 }
@@ -75,11 +65,6 @@ const pendingClaimsSchema = z.object({
   purpose: z.literal(PENDING_TOKEN_PURPOSE),
 });
 
-/**
- * 2FA-pending token: proves "password OK, 2FA still required". Grants
- * NOTHING — no perms, no sid — and is accepted only by the 2FA verify
- * endpoint (next stage). 5-minute expiry.
- */
 export function signPendingToken(adminId: string): string {
   const env = getEnv();
   return jwt.sign({ sub: adminId, purpose: PENDING_TOKEN_PURPOSE }, env.JWT_ACCESS_SECRET, {

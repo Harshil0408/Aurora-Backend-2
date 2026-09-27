@@ -11,7 +11,6 @@ export interface AuthContext {
 }
 
 declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
       auth?: AuthContext;
@@ -19,11 +18,7 @@ declare global {
   }
 }
 
-/**
- * Authenticates short-lived access JWTs AND revalidates them against the
- * database: admin must be ACTIVE, tokenVersion must match (global logout),
- * and the bound session must be live. JWT claims alone are never trusted.
- */
+
 export function requireAuth(req: Request, _res: Response, next: NextFunction): void {
   void (async () => {
     const header = req.header('authorization');

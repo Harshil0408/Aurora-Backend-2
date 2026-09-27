@@ -8,7 +8,6 @@ import {
   updateRoleHandler,
 } from './roles-permissions.controller.js';
 
-/** Roles & Permissions screen routes. Mounted under /api/v1/admin via administrationRouter. */
 export const rolesPermissionsRouter: Router = Router();
 
 rolesPermissionsRouter.get('/permissions', ...listPermissionsHandler);

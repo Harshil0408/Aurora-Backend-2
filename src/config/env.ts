@@ -21,7 +21,6 @@ const envSchema = z.object({
   REFRESH_TOKEN_PEPPER: z.string().min(1).default('dev-only-pepper'),
   TOTP_ENCRYPTION_KEY: z.string().min(1).default('dev-only-totp-key'),
 
-  // Super Admin bootstrap (used only by prisma/seed.ts; never by the app).
   SUPER_ADMIN_EMAIL: z.email().optional(),
   SUPER_ADMIN_PASSWORD: z.string().min(12, 'SUPER_ADMIN_PASSWORD must be >= 12 chars').optional(),
 
@@ -65,7 +64,6 @@ export function getEnv(): Env {
   return cached;
 }
 
-/** Test-only helper to reset the cached env between tests. */
 export function resetEnvCache(): void {
   cached = undefined;
 }

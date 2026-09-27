@@ -26,14 +26,6 @@ export interface PasswordLoginResult {
   expiresInSeconds: number;
 }
 
-/**
- * Step 1 of mandatory-2FA login. NEVER returns a full session here —
- * the session is issued only after TOTP/recovery verification (next stage).
- *
- * All failure paths throw the SAME generic 401 so responses never reveal
- * whether the email exists, the account is locked, or it is suspended.
- * Distinct server-side events are still logged for monitoring/alerting.
- */
 export async function loginWithPassword(
   input: LoginInput,
   meta: RequestMeta,
@@ -69,13 +61,11 @@ export async function loginWithPassword(
         });
       }
     } else {
-      // Unknown email: log WITHOUT adminId (nothing attributable).
       await logLoginEvent(prisma, { adminId: null, event: 'LOGIN_FAILURE', meta });
     }
     throw unauthorized('Invalid email or password');
   }
 
-  // Password correct — now gate on status/lockout (still generic to caller).
   if (admin.status !== 'ACTIVE') {
     await logLoginEvent(prisma, { adminId: admin.id, event: 'LOGIN_BLOCKED_STATUS', meta });
     throw unauthorized('Invalid email or password');
@@ -85,7 +75,6 @@ export async function loginWithPassword(
     throw unauthorized('Invalid email or password');
   }
 
-  // Success: reset counters atomically with the audit row.
   await prisma.$transaction(async (tx) => {
     await tx.adminUser.update({
       where: { id: admin.id },

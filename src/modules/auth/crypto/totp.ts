@@ -6,12 +6,7 @@ import { logger } from '../../../config/logger.js';
 const TOTP_ISSUER = 'EComm Admin';
 const TOTP_WINDOW = 1; // ±30s clock skew tolerance
 
-/**
- * TOTP secrets are encrypted with AES-256-GCM before storage.
- * Key: 64-hex chars (32 bytes) via TOTP_ENCRYPTION_KEY in production.
- * Dev fallback (non-hex value): SHA-256 of the value — logged as a
- * warning; production deployments MUST set a real 64-hex key.
- */
+
 function getKey(): Buffer {
   const raw = getEnv().TOTP_ENCRYPTION_KEY;
   if (/^[0-9a-fA-F]{64}$/.test(raw)) return Buffer.from(raw, 'hex');
@@ -19,7 +14,6 @@ function getKey(): Buffer {
   return createHash('sha256').update(raw, 'utf8').digest();
 }
 
-/** AES-256-GCM encrypt; format `ivHex:cipherHex:tagHex`. */
 export function encryptTotpSecret(plaintextBase32: string): string {
   const iv = randomBytes(12);
   const cipher = createCipheriv('aes-256-gcm', getKey(), iv);
@@ -28,7 +22,6 @@ export function encryptTotpSecret(plaintextBase32: string): string {
   return `${iv.toString('hex')}:${enc.toString('hex')}:${tag.toString('hex')}`;
 }
 
-/** Returns null (never throws) on tampered/malformed input. */
 export function decryptTotpSecret(stored: string): string | null {
   try {
     const parts = stored.split(':');
@@ -45,13 +38,11 @@ export function decryptTotpSecret(stored: string): string | null {
 }
 
 export interface TotpEnrollment {
-  /** Base32 secret — shown ONCE (QR), then only the encrypted form is kept. */
   secretBase32: string;
   encryptedSecret: string;
   otpauthUrl: string;
 }
 
-/** 160-bit secret per RFC 4226 (GOOGLE_AUTH-compatible). */
 export function beginTotpEnrollment(adminEmail: string): TotpEnrollment {
   const secret = new OTPAuth.Secret({ size: 20 });
   const totp = new OTPAuth.TOTP({
@@ -69,7 +60,6 @@ export function beginTotpEnrollment(adminEmail: string): TotpEnrollment {
   };
 }
 
-/** Verify a 6-digit code against the DECRYPTED base32 secret. */
 export function verifyTotpCode(secretBase32: string, code: string): boolean {
   if (!/^\d{6}$/.test(code.trim())) return false;
   try {

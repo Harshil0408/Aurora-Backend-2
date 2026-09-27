@@ -65,10 +65,6 @@ export const ROLE_SEEDS: readonly RoleSeed[] = [
   },
 ];
 
-/**
- * Pure permission check. Super Admin short-circuits (implicit all).
- * Used by middleware AND service-layer checks for sensitive operations.
- */
 export function hasPermission(granted: ReadonlySet<string>, required: PermissionKey): boolean {
   if (granted.has(SUPER_ADMIN_ROLE_KEY)) return true;
   return granted.has(required);

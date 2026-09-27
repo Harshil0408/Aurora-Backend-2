@@ -11,17 +11,6 @@ function warnOnce(message: string): void {
   }
 }
 
-/**
- * Lazily create the native Redis client (ioredis). Uses lazyConnect so importing
- * this module never opens a connection (tests that don't need Redis stay fast).
- * Callers must handle null (Redis unavailable) gracefully — Redis is a
- * cache/rate-limit aid, never the source of truth.
- *
- * NOTE: ioredis cannot speak Upstash's HTTPS REST API. When only
- * UPSTASH_REDIS_REST_URL/TOKEN are set (no native `rediss://` URL),
- * use pingRedis() for health checks — it speaks REST via fetch.
- * For session/cache commands, add Upstash's native Redis URL as REDIS_URL.
- */
 export function getRedis(): Redis {
   if (!client) {
     const url = process.env['REDIS_URL'] ?? 'redis://127.0.0.1:6379';
@@ -38,7 +27,6 @@ export function getRedis(): Redis {
 }
 
 export async function pingRedis(): Promise<boolean> {
-  // Prefer Upstash REST when configured — works without a native connection.
   const restUrl = process.env['UPSTASH_REDIS_REST_URL'];
   const restToken = process.env['UPSTASH_REDIS_REST_TOKEN'];
   if (restUrl && restToken) {

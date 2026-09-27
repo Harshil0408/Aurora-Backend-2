@@ -17,11 +17,6 @@ import {
 
 export const authRouter: Router = Router();
 
-/**
- * Login-specific limiter (stricter than the global one): 20 attempts per
- * 15 min per IP by default. Account lockout (5 fails → 15 min) is the
- * second layer — this one protects the endpoint, that one protects the account.
- */
 function loginLimiter(): ReturnType<typeof rateLimit> {
   const env = getEnv();
   return rateLimit({
