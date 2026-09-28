@@ -51,10 +51,16 @@ import {
 
 function refreshCookieOptions(): CookieOptions {
   const env = getEnv();
+  // Frontend (vercel.app) ↔ API (onrender.com) is cross-site: `SameSite=Strict`
+  // cookies are never sent on cross-site fetches, so refresh/rotation would
+  // silently break in production. `None` + `Secure` is required for
+  // cross-site cookies; local dev stays Lax (Strict also blocks top-level
+  // navigation flows and is unnecessarily harsh for localhost).
+  const isProduction = env.NODE_ENV === 'production';
   return {
     httpOnly: true,
-    sameSite: 'strict',
-    secure: env.NODE_ENV === 'production',
+    sameSite: isProduction ? 'none' : 'lax',
+    secure: isProduction,
     path: `${env.API_PREFIX}/admin/auth`,
     maxAge: REFRESH_IDLE_MS,
   };

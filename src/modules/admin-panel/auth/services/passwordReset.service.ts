@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { getPrisma } from '../../../../config/db.js';
-import { getEnv } from '../../../../config/env.js';
+import { getPrimaryOrigin } from '../../../../config/env.js';
 import { logger } from '../../../../config/logger.js';
 import { badRequest, unauthorized } from '../../../../shared/errors/AppError.js';
 import type { RequestMeta } from '../../../../shared/utils/requestMeta.js';
@@ -38,7 +38,7 @@ export async function requestPasswordReset(email: string, meta: RequestMeta): Pr
       await logLoginEvent(tx, { adminId: admin.id, event: 'PASSWORD_RESET_REQUESTED', meta });
     });
     try {
-      const resetUrl = buildPasswordResetUrl(getEnv().FRONTEND_ORIGIN, token);
+      const resetUrl = buildPasswordResetUrl(getPrimaryOrigin(), token);
       const mail = buildPasswordResetMail(resetUrl, token);
       await getMailer().send({
         to: admin.email,

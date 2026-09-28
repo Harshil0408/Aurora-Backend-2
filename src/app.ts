@@ -3,7 +3,7 @@ import cors from 'cors';
 import express, { type Express } from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
-import { getEnv } from './config/env.js';
+import { getAllowedOrigins, getEnv } from './config/env.js';
 import { errorHandler, notFound } from './shared/middleware/errorHandler.js';
 import { requestId } from './shared/middleware/requestId.js';
 import { requestLogger } from './shared/middleware/requestLogger.js';
@@ -23,10 +23,20 @@ export function createApp(): Express {
   app.use(requestId);
   app.use(requestLogger);
   app.use(helmet({ contentSecurityPolicy: false }));
+  const allowedOrigins = getAllowedOrigins(env);
   app.use(
     cors({
-      origin: env.FRONTEND_ORIGIN,
+      origin: (origin, callback) => {
+        // No Origin header (curl, Postman, server-to-server, same-origin
+        // navigation) — allow through; browser CORS doesn't apply.
+        if (!origin) return callback(null, true);
+        if (allowedOrigins.includes(origin)) return callback(null, true);
+        return callback(new Error(`CORS blocked: ${origin} not in allowlist`));
+      },
       credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
+      maxAge: 600,
     }),
   );
   app.use(express.json({ limit: '1mb' }));

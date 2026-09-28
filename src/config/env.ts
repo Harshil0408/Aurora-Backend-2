@@ -38,7 +38,22 @@ const envSchema = z.object({
     .default('false')
     .transform((v) => v === 'true'),
 
-  FRONTEND_ORIGIN: z.string().default('http://localhost:3000'),
+  FRONTEND_ORIGIN: z
+    .string()
+    .default('http://localhost:3000')
+    // Normalize: trim whitespace, drop trailing slashes, support a
+    // comma-separated allowlist (first entry = canonical app URL used
+    // for absolute links such as password-reset mails). Without this,
+    // `https://app.vercel.app/` never equals the browser-sent
+    // `Origin: https://app.vercel.app` and cors blocks every call.
+    .transform((v) =>
+      v
+        .split(',')
+        .map((s) => s.trim().replace(/\/+$/, ''))
+        .filter(Boolean)
+        .join(','),
+    )
+    .refine((v) => v.length > 0, 'FRONTEND_ORIGIN is required'),
 
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
@@ -66,4 +81,16 @@ export function getEnv(): Env {
 
 export function resetEnvCache(): void {
   cached = undefined;
+}
+
+/** All allowed browser origins (comma-separated FRONTEND_ORIGIN). */
+export function getAllowedOrigins(env: Env = getEnv()): string[] {
+  return env.FRONTEND_ORIGIN.split(',')
+    .map((s) => s.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+}
+
+/** Canonical app URL (first origin) — use for absolute links in mails. */
+export function getPrimaryOrigin(env: Env = getEnv()): string {
+  return getAllowedOrigins(env)[0] ?? 'http://localhost:3000';
 }
