@@ -61,6 +61,14 @@ const envSchema = z.object({
 
   TEST_DATABASE_URL: z.string().min(1).optional(),
 
+  RENDER_EXTERNAL_URL: z.string().min(1).optional(),
+  KEEP_ALIVE_ENABLED: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === 'true')),
+  KEEP_ALIVE_INTERVAL_MS: z.coerce.number().int().min(1000).default(4590),
+  KEEP_ALIVE_URL: z.string().min(1).optional(),
+
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'debug']).default('info'),
 });
 
