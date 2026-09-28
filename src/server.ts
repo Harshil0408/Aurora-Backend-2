@@ -4,6 +4,11 @@ import { connectDatabase, disconnectDatabase } from './config/db.js';
 import { getEnv } from './config/env.js';
 import { logger } from './config/logger.js';
 import { disconnectRedis } from './config/redis.js';
+import {
+  resolveKeepAliveTarget,
+  shouldStartKeepAlive,
+  startKeepAlive,
+} from './shared/keepAlive.js';
 
 async function main(): Promise<void> {
   const env = getEnv();
@@ -14,8 +19,16 @@ async function main(): Promise<void> {
     logger.info(`API listening on :${env.PORT} (${env.NODE_ENV})`);
   });
 
+  // Self-ping on a short interval so Render's free tier never idles to sleep.
+  let stopKeepAlive: (() => void) | undefined;
+  if (env.NODE_ENV !== 'test' && shouldStartKeepAlive(env)) {
+    const target = resolveKeepAliveTarget(env);
+    if (target) stopKeepAlive = startKeepAlive(target);
+  }
+
   const shutdown = (signal: string): void => {
     logger.info(`Received ${signal}, shutting down gracefully`);
+    stopKeepAlive?.();
     server.close(() => {
       void (async () => {
         await disconnectDatabase();
