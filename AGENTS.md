@@ -1,6 +1,6 @@
 # AGENTS.md — ecomm-backend
 
-Modular monolith: Express 5 + TypeScript (NodeNext ESM) + Prisma 7 + MySQL 8 + Redis 8. Node `22.x`.
+Modular monolith: Express 5 + TypeScript (NodeNext ESM) + Prisma 7 + Postgres 17 (local Docker) / Neon Postgres (prod) + Redis 8. Node `22.x`.
 
 ## Entrypoints & layout
 
@@ -12,11 +12,11 @@ Modular monolith: Express 5 + TypeScript (NodeNext ESM) + Prisma 7 + MySQL 8 + R
 
 ## Commands (exact)
 
-- Setup: `npm install` → `docker compose up -d mysql redis` → `npx prisma migrate dev` → `npx prisma db seed` → `npm run dev` (tsx watch, API `:4000`, docs `/api/docs`).
+- Setup: `npm install` → `docker compose up -d postgres redis` → `npm run prisma:migrate:local` (or `npx prisma migrate dev`) → `npm run db:seed:local` → `npm run dev:local` (tsx watch, API `:4000`, docs `/api/docs`). Prod uses Neon: `npm run prisma:deploy:production` + `npm run db:seed:production` (see `.env.production`).
 - Verify: `npm run typecheck` (real type gate, strict) → `npm run format:check` → `npm test`. `npm run lint` only lints `scripts/` + `eslint.config.mjs` — it does NOT cover `src/`/`tests/` (typescript-eslint deferred for TS 7 compat; do not "fix" by adding it back without TS 7.1 support).
 - Build/start: `npm run build` = `prisma generate && tsc -p tsconfig.build.json && node scripts/copy-generated.mjs`. Never skip `copy-generated.mjs` — `tsc` drops generated `.js`/wasm. Then `npm start` (`node dist/server.js`).
 - Single unit test: `npx vitest run tests/<name>.test.ts`. Single integration test: `npx vitest run --config vitest.integration.config.ts tests/integration/<name>.test.ts`.
-- DB/Redis probes: `docker exec ecomm-mysql mysql -uecomm -pecomm_dev_password ecomm -e "SHOW TABLES;"`, `docker exec ecomm-redis redis-cli ping`, `GET localhost:4000/api/v1/health/ready`.
+- DB/Redis probes: `docker exec ecomm-postgres psql -Uecomm -decomm -c "\dt"`, `docker exec ecomm-redis redis-cli ping`, `GET localhost:4000/api/v1/health/ready`.
 
 ## Panels (multi-panel rule — never violate)
 
@@ -26,9 +26,9 @@ Modular monolith: Express 5 + TypeScript (NodeNext ESM) + Prisma 7 + MySQL 8 + R
 
 ## Gotchas
 
-- MySQL host port is **`127.0.0.1:3308` deliberately** (host 3306/3307 taken). `DATABASE_URL` uses 3308 locally; inside compose the `api` service uses `mysql:3306`. `P1001` = MySQL still starting (`docker compose ps` until healthy). Shadow-DB error on migrate = `ecomm` user needs CREATE DATABASE once (persists in volume).
+- Local Postgres host port is **`127.0.0.1:5433` deliberately** (5432 is blocked on Windows by Hyper-V reserved ranges). `DATABASE_URL`/`TEST_DATABASE_URL` use 5433 locally; inside compose the `api` service uses `postgres:5432`. `P1001` = Postgres still starting (`docker compose ps` until healthy) or Neon compute cold-starting (retry). First Neon deploy attempt after idle may fail — retry once.
 - Env is zod-validated and **cached** in `src/config/env.ts` (`getEnv()`); tests must call `resetEnvCache()` after changing `process.env`. `dotenv/config` is loaded in `server.ts` and `prisma.config.ts` only — plain module imports do not load `.env`.
-- Unit suite (`vitest.config.ts`) excludes `tests/integration/`, runs `singleFork`. Integration suite uses isolated `ecomm_test` DB: setup forces `DATABASE_URL=TEST_DATABASE_URL`, bumps `LOGIN_RATE_LIMIT_MAX=1000`, auto-creates DB + `prisma migrate deploy`, truncates all `admin_*` tables per test. Requires MySQL + Redis up. Never point `TEST_DATABASE_URL` at production.
+- Unit suite (`vitest.config.ts`) excludes `tests/integration/`, runs `singleFork`. Integration suite uses isolated `ecomm_test` DB on local Postgres: setup forces `DATABASE_URL=TEST_DATABASE_URL`, bumps `LOGIN_RATE_LIMIT_MAX=1000`, auto-creates DB + `prisma migrate deploy`, truncates all `admin_*` tables per test (`TRUNCATE ... CASCADE`). Requires Postgres + Redis up. Never point `TEST_DATABASE_URL` at production.
 - Outside local dev, `TOTP_ENCRYPTION_KEY` must be 64 hex chars (32 bytes). Mail is log-only unless `SMTP_HOST/USER/PASS` are all set (Gmail needs a 16-char App Password, not the login password).
 - Auth model: `POST /admin/auth/login` with no 2FA method returns a session directly; with TOTP/email-OTP enabled it returns a 2FA-pending token (+ `channel`) driving enroll/confirm/verify, then access JWT + `admin_rt` cookie with rotation + reuse detection.
 - Imports must use `.js` suffixes (`./config/env.js`) for NodeNext; use `import type` where type-only (`verbatimModuleSyntax`). Prettier: single quotes, semicolons, 100-col.

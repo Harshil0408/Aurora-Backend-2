@@ -1,16 +1,10 @@
-// Admin authentication module — Phase 2 will activate these models.
-// Placeholder relations (Customer/Seller) are stubbed so future modules
-// extend this file without rewriting admin tables.
-//
-// Naming: snake_case @@map for MySQL convention; Prisma models PascalCase.
-
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
 }
 
 model AdminUser {

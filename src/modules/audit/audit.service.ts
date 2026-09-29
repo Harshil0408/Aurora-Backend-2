@@ -13,7 +13,7 @@ export interface AuditInput {
 }
 
 /**
- * Persistent audit trail (MySQL) — distinct from Winston app logs:
+ * Persistent audit trail (Postgres) — distinct from Winston app logs:
  * structured, queryable, permission-gated, and written in the SAME
  * transaction as the business change it records. Never stores
  * passwords, tokens, or 2FA secrets — callers pass redacted snapshots.

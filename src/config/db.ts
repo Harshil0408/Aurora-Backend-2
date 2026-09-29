@@ -1,31 +1,41 @@
-import { PrismaMariaDb } from '@prisma/adapter-mariadb';
+import { PrismaPg } from '@prisma/adapter-pg';
+import pg from 'pg';
 import { PrismaClient } from '../generated/prisma/client.js';
 import { logger } from './logger.js';
 
-function createAdapter(): PrismaMariaDb {
-  const raw = process.env['DATABASE_URL'];
-  if (!raw) throw new Error('DATABASE_URL is required');
-  const url = new URL(raw);
-  const sslParam = (
-    url.searchParams.get('ssl-mode') ??
+const { Pool } = pg;
+
+function createAdapter(): PrismaPg {
+  const connectionString = process.env['DATABASE_URL'];
+  if (!connectionString) throw new Error('DATABASE_URL is required');
+
+  const url = new URL(connectionString);
+  const database = url.pathname.replace(/^\//, '').split('?')[0] ?? '';
+  if (!database) throw new Error('DATABASE_URL must include a database name');
+
+  const sslMode = (
     url.searchParams.get('sslmode') ??
+    url.searchParams.get('ssl-mode') ??
     url.searchParams.get('ssl') ??
     ''
   ).toUpperCase();
-  const sslRequired = ['REQUIRED', 'REQUIRE', 'TRUE', '1', 'PREFERRED'].includes(sslParam);
+  const sslRequired = ['REQUIRE', 'REQUIRED', 'VERIFY-CA', 'VERIFY-FULL', 'PREFER'].includes(
+    sslMode,
+  );
   const ca = process.env['DATABASE_SSL_CA'];
-  const database = url.pathname.replace(/^\//, '').split('?')[0] ?? '';
-  if (!database) throw new Error('DATABASE_URL must include a database name');
-  return new PrismaMariaDb({
-    host: url.hostname,
-    port: url.port ? Number(url.port) : 3306,
-    user: decodeURIComponent(url.username),
-    password: decodeURIComponent(url.password),
-    database,
-    connectionLimit: 10,
-    allowPublicKeyRetrieval: true,
-    ...(sslRequired ? { ssl: ca ? { ca, rejectUnauthorized: true } : { rejectUnauthorized: false } } : {}),
+
+  // node-postgres honors `sslmode` from the connection string (e.g. Neon),
+  // but explicit options take precedence — use them for CA pinning.
+  const pool = new Pool({
+    connectionString,
+    max: 10,
+    ...(ca
+      ? { ssl: { ca, rejectUnauthorized: true } }
+      : sslRequired
+        ? { ssl: { rejectUnauthorized: false } }
+        : {}),
   });
+  return new PrismaPg(pool);
 }
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient | undefined };

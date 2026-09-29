@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import mariadb from 'mariadb';
+import pg from 'pg';
 import { disconnectDatabase, getPrisma } from '../../src/config/db.js';
 import { resetEnvCache } from '../../src/config/env.js';
 import { hashSecret } from '../../src/modules/admin-panel/auth/crypto/password.js';
@@ -30,18 +30,21 @@ export function getTestDatabaseUrl(): string {
 export async function ensureTestDatabase(): Promise<void> {
   const testUrl = getTestDatabaseUrl();
   const url = new URL(testUrl);
-  const dbName = url.pathname.replace(/^\//, '');
+  const dbName = url.pathname.replace(/^\//, '').split('?')[0] ?? '';
+  if (!dbName) throw new Error('TEST_DATABASE_URL must include a database name');
 
-  const conn = await mariadb.createConnection({
-    host: url.hostname,
-    port: url.port ? Number(url.port) : 3306,
-    user: decodeURIComponent(url.username),
-    password: decodeURIComponent(url.password),
-  });
+  // Connect to the server's default `postgres` database to create the target.
+  const adminUrl = new URL(testUrl);
+  adminUrl.pathname = '/postgres';
+  const client = new pg.Client({ connectionString: adminUrl.toString() });
+  await client.connect();
   try {
-    await conn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
+    await client.query(`CREATE DATABASE "${dbName.replace(/"/g, '""')}"`);
+  } catch (err) {
+    // 42P04 = duplicate_database — already exists, keep going.
+    if ((err as { code?: string }).code !== '42P04') throw err;
   } finally {
-    await conn.end();
+    await client.end();
   }
 
   execSync('npx prisma migrate deploy', {
@@ -54,18 +57,9 @@ export async function ensureTestDatabase(): Promise<void> {
 export async function truncateTestTables(): Promise<void> {
   resetEnvCache();
   const prisma = getPrisma();
-  // Interactive transaction pins ONE pooled connection, so the session
-  // variable FOREIGN_KEY_CHECKS applies to every TRUNCATE below.
-  await prisma.$transaction(async (tx) => {
-    await tx.$executeRawUnsafe('SET FOREIGN_KEY_CHECKS = 0');
-    try {
-      for (const table of TABLES) {
-        await tx.$executeRawUnsafe(`TRUNCATE TABLE \`${table}\``);
-      }
-    } finally {
-      await tx.$executeRawUnsafe('SET FOREIGN_KEY_CHECKS = 1');
-    }
-  });
+  // Single TRUNCATE ... CASCADE handles FKs without session variables.
+  const tables = TABLES.map((t) => `"${t}"`).join(', ');
+  await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tables} RESTART IDENTITY CASCADE`);
 }
 
 export interface TestAdminInput {

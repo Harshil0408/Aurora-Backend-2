@@ -15,7 +15,7 @@ interface LogLoginEventInput {
 }
 
 /**
- * Security events go to MySQL (source of truth) — never only Redis/logs.
+ * Security events go to Postgres (source of truth) — never only Redis/logs.
  * Passwords/tokens are never included; metadata only.
  */
 export async function logLoginEvent(

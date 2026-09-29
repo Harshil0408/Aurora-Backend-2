@@ -11,11 +11,11 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: mysql://ecomm:${MYSQL_PASSWORD:-ecomm_dev_password}@mysql:3306/ecomm
+      DATABASE_URL: postgresql://ecomm:${POSTGRES_PASSWORD:-ecomm_dev_password}@postgres:5432/ecomm
       REDIS_URL: redis://redis:6379
       NODE_ENV: development
     depends_on:
-      mysql:
+      postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -26,27 +26,25 @@ services:
       - ecomm-net
     command: npm run dev
 
-  mysql:
-    image: mysql:8
-    container_name: ecomm-mysql
+  postgres:
+    image: postgres:17-alpine
+    container_name: ecomm-postgres
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_dev_password}
-      MYSQL_DATABASE: ecomm
-      MYSQL_USER: ecomm
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-ecomm_dev_password}
+      POSTGRES_DB: ecomm
+      POSTGRES_USER: ecomm
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ecomm_dev_password}
     ports:
-      # Host 3306/3307 are taken (local MySQL + paisawise) — phpMyAdmin can
-      # reach this instance at 127.0.0.1:3308.
-      - '127.0.0.1:3308:3306'
+      # Host 5432 is blocked on Windows (Hyper-V reserved range) — use 5433.
+      - '127.0.0.1:5433:5432'
     volumes:
-      - mysql-data:/var/lib/mysql
+      - pg-data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-u', 'root', '-p${MYSQL_ROOT_PASSWORD:-root_dev_password}']
+      test: ['CMD-SHELL', 'pg_isready -U ecomm -d ecomm']
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 15s
     networks:
       - ecomm-net
 
@@ -74,5 +72,5 @@ networks:
     driver: bridge
 
 volumes:
-  mysql-data:
+  pg-data:
   redis-data:
