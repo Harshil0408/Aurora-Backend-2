@@ -122,14 +122,145 @@ describe('RBAC + admin management', () => {
     const suspendSelf = await request(app)
       .patch(`/api/v1/admin/admins/${id}/status`)
       .set(authHeader(session.accessToken))
-      .send({ status: 'SUSPENDED' });
-    expect(suspendSelf.status).toBe(400);
+      .send({ status: 'SUSPENDED', reason: 'self change attempt' });
+    expect(suspendSelf.status).toBe(403);
+    expect(suspendSelf.body.error.details).toMatchObject({ code: 'CANNOT_CHANGE_OWN_STATUS' });
 
     const stripSelf = await request(app)
       .put(`/api/v1/admin/admins/${id}/roles`)
       .set(authHeader(session.accessToken))
       .send({ roleKeys: ['sub_admin'] });
-    expect(stripSelf.status).toBe(400);
+    expect(stripSelf.status).toBe(403);
+    expect(stripSelf.body.error.details).toMatchObject({ code: 'CANNOT_REMOVE_OWN_SUPER_ADMIN' });
+  });
+
+  it('Admins screen: summary, detail, filters, check-email, generate, revoke-sessions', async () => {
+    const app = createApp();
+    const session = await fullLogin(app, SUPER, PW);
+
+    const summary = await request(app)
+      .get('/api/v1/admin/admins/summary')
+      .set(authHeader(session.accessToken));
+    expect(summary.status).toBe(200);
+    expect(summary.body.data).toMatchObject({
+      total: 3,
+      active: 3,
+      suspended: 0,
+      disabled: 0,
+      needsAttention: 0,
+    });
+    expect(summary.body.data.twoFactorEnabled).toBe(1); // fullLogin enrolls TOTP for SUPER
+
+    const filtered = await request(app)
+      .get('/api/v1/admin/admins?search=support@x.com&role=support&sort=email:asc')
+      .set(authHeader(session.accessToken));
+    expect(filtered.status).toBe(200);
+    expect(filtered.body.pagination.total).toBe(1);
+    expect(filtered.body.meta.counts).toMatchObject({ total: 3, active: 3 });
+    const item = filtered.body.data[0];
+    expect(item).toMatchObject({ email: SUPPORT });
+    expect(item.roles).toEqual([{ key: 'support', name: expect.any(String) }]);
+    expect(item.twoFactor).toEqual({ enabled: false, methods: [] });
+    expect(item.isSelf).toBe(false);
+    expect(item.isLastActiveSuperAdmin).toBe(false);
+    expect(item.name).toEqual(expect.any(String));
+
+    const detail = await request(app)
+      .get(`/api/v1/admin/admins/${await adminId(SUPPORT)}`)
+      .set(authHeader(session.accessToken));
+    expect(detail.status).toBe(200);
+    expect(detail.body.data).toMatchObject({ email: SUPPORT, activeSessionsCount: 0 });
+    expect(Array.isArray(detail.body.data.recentActivity)).toBe(true);
+
+    const checkTaken = await request(app)
+      .get(`/api/v1/admin/admins/check-email?email=${SUPPORT}`)
+      .set(authHeader(session.accessToken));
+    expect(checkTaken.body.data).toEqual({ available: false });
+    const checkFree = await request(app)
+      .get('/api/v1/admin/admins/check-email?email=free@x.com')
+      .set(authHeader(session.accessToken));
+    expect(checkFree.body.data).toEqual({ available: true });
+
+    const generated = await request(app)
+      .post('/api/v1/admin/admins/password/generate')
+      .set(authHeader(session.accessToken));
+    expect(generated.status).toBe(200);
+    expect(generated.body.data.password.length).toBeGreaterThanOrEqual(12);
+
+    const subSession = await fullLogin(app, SUB, PW);
+    const revoke = await request(app)
+      .post(`/api/v1/admin/admins/${await adminId(SUB)}/revoke-sessions`)
+      .set(authHeader(session.accessToken));
+    expect(revoke.status).toBe(200);
+    expect(revoke.body.data.revokedCount).toBeGreaterThanOrEqual(1);
+    // Caller session untouched — still authorized.
+    const stillMe = await request(app)
+      .get('/api/v1/admin/auth/me')
+      .set(authHeader(session.accessToken));
+    expect(stillMe.status).toBe(200);
+    void subSession;
+  });
+
+  it('Admins screen: create with name+tempPassword, status with reason, roles diff', async () => {
+    const app = createApp();
+    const session = await fullLogin(app, SUPER, PW);
+
+    const created = await request(app)
+      .post('/api/v1/admin/admins')
+      .set(authHeader(session.accessToken))
+      .send({
+        email: 'New-Admin@x.com',
+        name: 'New Admin',
+        tempPassword: 'Temp-Password-123!',
+        roleKeys: ['support'],
+      });
+    expect(created.status).toBe(201);
+    expect(created.body.data).toMatchObject({
+      email: 'New-Admin@x.com',
+      name: 'New Admin',
+      status: 'ACTIVE',
+      inviteSent: false,
+    });
+    const newId: string = created.body.data.id;
+
+    const dup = await request(app)
+      .post('/api/v1/admin/admins')
+      .set(authHeader(session.accessToken))
+      .send({
+        email: 'new-admin@x.com',
+        tempPassword: 'Temp-Password-123!',
+        roleKeys: ['support'],
+      });
+    expect(dup.status).toBe(409);
+    expect(dup.body.error.details).toMatchObject({ code: 'EMAIL_IN_USE' });
+
+    const weak = await request(app)
+      .post('/api/v1/admin/admins')
+      .set(authHeader(session.accessToken))
+      .send({ email: 'weak@x.com', tempPassword: 'password123!', roleKeys: ['support'] });
+    expect(weak.status).toBe(422);
+
+    const suspended = await request(app)
+      .patch(`/api/v1/admin/admins/${newId}/status`)
+      .set(authHeader(session.accessToken))
+      .send({ status: 'Suspended', reason: 'policy violation' });
+    expect(suspended.status).toBe(200);
+    expect(suspended.body.data).toMatchObject({ id: newId, status: 'SUSPENDED' });
+
+    const audit = await request(app)
+      .get(`/api/v1/admin/audit-log?action=admin.suspend&resourceType=admin&resourceId=${newId}`)
+      .set(authHeader(session.accessToken));
+    expect(audit.body.data[0]).toMatchObject({
+      after: { status: 'SUSPENDED', reason: 'policy violation' },
+    });
+
+    const roles = await request(app)
+      .put(`/api/v1/admin/admins/${newId}/roles`)
+      .set(authHeader(session.accessToken))
+      .send({ roleKeys: ['sub_admin', 'support'] });
+    expect(roles.status).toBe(200);
+    expect(roles.body.data.added).toEqual(['sub_admin']);
+    expect(roles.body.data.removed).toEqual([]);
   });
 
   it('super admin suspends support: login blocked + audit row with before/after', async () => {
@@ -139,7 +270,7 @@ describe('RBAC + admin management', () => {
     const suspend = await request(app)
       .patch(`/api/v1/admin/admins/${await adminId(SUPPORT)}/status`)
       .set(authHeader(session.accessToken))
-      .send({ status: 'SUSPENDED' });
+      .send({ status: 'SUSPENDED', reason: 'test suspension' });
     expect(suspend.status).toBe(200);
 
     const login = await request(app)

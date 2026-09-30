@@ -56,7 +56,8 @@ export const openApiSpec = {
               requires2fa: {
                 type: 'boolean',
                 example: true,
-                description: 'false → direct session (accessToken present); true → pendingToken + channel',
+                description:
+                  'false → direct session (accessToken present); true → pendingToken + channel',
               },
               channel: {
                 type: 'string',
@@ -171,17 +172,76 @@ export const openApiSpec = {
       },
       CreateAdminRequest: {
         type: 'object',
-        required: ['email', 'password', 'roleKeys'],
+        required: ['email', 'roleKeys'],
         properties: {
           email: { type: 'string', format: 'email', example: 'ops@local.test' },
-          password: { type: 'string', minLength: 12, example: 'Temp-Password-123!' },
+          name: {
+            type: 'string',
+            example: 'Ops Operator',
+            description: 'Min 2 chars; defaults to the email local-part',
+          },
+          tempPassword: {
+            type: 'string',
+            minLength: 12,
+            example: 'Temp-Password-123!',
+            description:
+              'UI field name (`password` still accepted). Min 12 chars + letters and numbers.',
+          },
+          password: {
+            type: 'string',
+            minLength: 12,
+            description: 'Legacy alias of tempPassword — send either one.',
+          },
           roleKeys: { type: 'array', items: { type: 'string' }, example: ['support'] },
+        },
+      },
+      AdminListItem: {
+        type: 'object',
+        required: ['id', 'email', 'name', 'status', 'roles', 'twoFactor', 'createdAt'],
+        properties: {
+          id: { type: 'string' },
+          email: { type: 'string', format: 'email' },
+          name: { type: 'string' },
+          status: { type: 'string', enum: ['ACTIVE', 'SUSPENDED', 'DISABLED', 'PENDING'] },
+          roles: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['key', 'name'],
+              properties: { key: { type: 'string' }, name: { type: 'string' } },
+            },
+          },
+          twoFactor: {
+            type: 'object',
+            required: ['enabled', 'methods'],
+            properties: {
+              enabled: { type: 'boolean' },
+              methods: { type: 'array', items: { type: 'string', enum: ['totp', 'email_otp'] } },
+            },
+          },
+          createdAt: { type: 'string', format: 'date-time' },
+          updatedAt: { type: 'string', format: 'date-time' },
+          lastLoginAt: { type: 'string', format: 'date-time', nullable: true },
+          isSelf: { type: 'boolean' },
+          isLastActiveSuperAdmin: { type: 'boolean' },
         },
       },
       SetStatusRequest: {
         type: 'object',
-        required: ['status'],
-        properties: { status: { type: 'string', enum: ['ACTIVE', 'SUSPENDED', 'DISABLED'] } },
+        required: ['status', 'reason'],
+        properties: {
+          status: {
+            type: 'string',
+            enum: ['ACTIVE', 'SUSPENDED', 'DISABLED', 'Active', 'Suspended', 'Disabled'],
+            description: 'UPPERCASE canonical; Capitalized display form also accepted',
+          },
+          reason: {
+            type: 'string',
+            minLength: 3,
+            maxLength: 500,
+            description: 'Required — persisted to the audit entry',
+          },
+        },
       },
       SetRolesRequest: {
         type: 'object',
@@ -321,7 +381,8 @@ export const openApiSpec = {
     '/admin/auth/2fa/totp/enroll': {
       post: {
         tags: ['auth'],
-        summary: 'Enable TOTP while logged in (Security page). Returns QR + one-time recovery codes',
+        summary:
+          'Enable TOTP while logged in (Security page). Returns QR + one-time recovery codes',
         security: [{ bearerAuth: [] }],
         responses: {
           '200': {
@@ -550,9 +611,44 @@ export const openApiSpec = {
     '/admin/admins': {
       get: {
         tags: ['admin'],
-        summary: 'List admins (perm: admin.read, paginated)',
+        summary: 'List admins (perm: admin.read, paginated + tab counts in meta)',
         security: [{ bearerAuth: [] }],
-        responses: { '200': { description: 'Admin list' }, '403': { description: 'Forbidden' } },
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 20 } },
+          {
+            name: 'status',
+            in: 'query',
+            schema: {
+              type: 'string',
+              enum: ['Active', 'Suspended', 'Disabled', 'ACTIVE', 'SUSPENDED', 'DISABLED'],
+            },
+            description: 'Absent = all tabs',
+          },
+          {
+            name: 'role',
+            in: 'query',
+            schema: { type: 'string' },
+            description: 'Role key, e.g. support',
+          },
+          {
+            name: 'search',
+            in: 'query',
+            schema: { type: 'string' },
+            description: 'Matches email + name (min 2 chars client-side)',
+          },
+          { name: 'sort', in: 'query', schema: { type: 'string', default: 'createdAt:desc' } },
+        ],
+        responses: {
+          '200': {
+            description:
+              'Admin list; meta.counts = { total, active, suspended, disabled } + meta.twoFactorEnabled',
+            content: {
+              'application/json': { schema: { $ref: '#/components/schemas/AdminListItem' } },
+            },
+          },
+          '403': { description: 'Forbidden' },
+        },
       },
       post: {
         tags: ['admin'],
@@ -565,9 +661,62 @@ export const openApiSpec = {
           },
         },
         responses: {
-          '201': { description: 'Created' },
-          '403': { description: 'Escalation blocked' },
-          '409': { description: 'Email exists' },
+          '201': {
+            description: 'Created (never returns the password; inviteSent=false in phase 1)',
+          },
+          '403': { description: 'Escalation blocked (details.code=SUPER_ADMIN_GRANT_FORBIDDEN)' },
+          '409': { description: 'Email exists (details.code=EMAIL_IN_USE)' },
+          '422': { description: 'Weak password / unknown role (details.field + details.code)' },
+        },
+      },
+    },
+    '/admin/admins/summary': {
+      get: {
+        tags: ['admin'],
+        summary: 'Team strip counts (perm: admin.read)',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: '{ total, active, suspended, disabled, needsAttention, twoFactorEnabled }',
+          },
+        },
+      },
+    },
+    '/admin/admins/check-email': {
+      get: {
+        tags: ['admin'],
+        summary: 'Live email-uniqueness check for the Create dialog (perm: admin.read)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'email',
+            in: 'query',
+            required: true,
+            schema: { type: 'string', format: 'email' },
+          },
+        ],
+        responses: { '200': { description: '{ available: boolean }' } },
+      },
+    },
+    '/admin/admins/password/generate': {
+      post: {
+        tags: ['admin'],
+        summary: 'Generate a policy-accepted temp password (perm: admin.create)',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: '{ password } — 16 chars, CSPRNG' } },
+      },
+    },
+    '/admin/admins/{id}': {
+      get: {
+        tags: ['admin'],
+        summary: 'Admin detail + session count + last 5 audit entries (perm: admin.read)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          '200': {
+            description: 'AdminDetail (AdminListItem + activeSessionsCount + recentActivity)',
+          },
+          '404': { description: 'Unknown id (details.code=ADMIN_NOT_FOUND)' },
         },
       },
     },
@@ -583,7 +732,24 @@ export const openApiSpec = {
             'application/json': { schema: { $ref: '#/components/schemas/SetStatusRequest' } },
           },
         },
-        responses: { '200': { description: 'Updated' } },
+        responses: {
+          '200': { description: '{ id, status, updatedAt }. DISABLED revokes all sessions' },
+          '403': { description: 'Self-change (details.code=CANNOT_CHANGE_OWN_STATUS)' },
+          '409': { description: 'Last active Super Admin (details.code=LAST_SUPER_ADMIN)' },
+        },
+      },
+    },
+    '/admin/admins/{id}/revoke-sessions': {
+      post: {
+        tags: ['admin'],
+        summary:
+          'Revoke ALL sessions for one admin (perm: session.revoke; never touches caller cookie)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          '200': { description: '{ revokedCount } + tokenVersion bump + session.revoke audit' },
+          '404': { description: 'Unknown id' },
+        },
       },
     },
     '/admin/admins/{id}/roles': {
@@ -598,7 +764,11 @@ export const openApiSpec = {
             'application/json': { schema: { $ref: '#/components/schemas/SetRolesRequest' } },
           },
         },
-        responses: { '200': { description: 'Updated' } },
+        responses: {
+          '200': { description: '{ roles, added, removed }' },
+          '403': { description: 'Escalation or own-SA removal' },
+          '409': { description: 'Last active Super Admin' },
+        },
       },
     },
     '/admin/permissions': {
@@ -673,8 +843,16 @@ export const openApiSpec = {
     '/admin/audit-log': {
       get: {
         tags: ['admin'],
-        summary: 'Query audit trail (perm: audit.read, paginated, ?action=)',
+        summary:
+          'Query audit trail (perm: audit.read, paginated, ?action=&resourceType=&resourceId=)',
         security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 20 } },
+          { name: 'action', in: 'query', schema: { type: 'string' } },
+          { name: 'resourceType', in: 'query', schema: { type: 'string' } },
+          { name: 'resourceId', in: 'query', schema: { type: 'string' } },
+        ],
         responses: { '200': { description: 'Audit entries' } },
       },
     },

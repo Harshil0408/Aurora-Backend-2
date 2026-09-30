@@ -1,18 +1,27 @@
 import { getPrisma } from '../../../../config/db.js';
 
+export interface AuditLogQuery {
+  page: number;
+  limit: number;
+  action?: string | undefined;
+  resourceType?: string | undefined;
+  resourceId?: string | undefined;
+}
+
 export async function queryAuditLog(
-  page: number,
-  limit: number,
-  action?: string,
+  query: AuditLogQuery,
 ): Promise<{ data: unknown[]; total: number }> {
   const prisma = getPrisma();
-  const where = action ? { action } : {};
+  const where: { action?: string; resourceType?: string; resourceId?: string } = {};
+  if (query.action) where.action = query.action;
+  if (query.resourceType) where.resourceType = query.resourceType;
+  if (query.resourceId) where.resourceId = query.resourceId;
   const [rows, total] = await Promise.all([
     prisma.adminAuditLog.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      skip: (page - 1) * limit,
-      take: limit,
+      skip: (query.page - 1) * query.limit,
+      take: query.limit,
     }),
     prisma.adminAuditLog.count({ where }),
   ]);

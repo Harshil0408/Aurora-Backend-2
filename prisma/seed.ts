@@ -100,6 +100,7 @@ async function bootstrapSuperAdmin(): Promise<void> {
       data: {
         email: env.SUPER_ADMIN_EMAIL as string,
         emailNormalized,
+        name: (env.SUPER_ADMIN_EMAIL as string).split('@')[0] ?? env.SUPER_ADMIN_EMAIL,
         passwordHash: await hashSecret(env.SUPER_ADMIN_PASSWORD as string),
         status: 'ACTIVE',
         emailVerifiedAt: new Date(),

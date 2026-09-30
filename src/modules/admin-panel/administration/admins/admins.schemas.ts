@@ -1,18 +1,32 @@
 import { z } from 'zod';
 
-/** POST /admins — Admins screen: Create Admin modal. */
+
 export const createAdminSchema = z.object({
   email: z.email().max(255),
-  password: z.string().min(12).max(128),
-  roleKeys: z.array(z.string().min(1).max(64)).min(1).max(10),
+  name: z.string().max(255).optional(),
+  password: z.string().min(1).max(128).optional(),
+  tempPassword: z.string().min(1).max(128).optional(),
+  roleKeys: z.array(z.string().min(1).max(64)).max(10),
 });
 
-/** PATCH /admins/:id/status — Admins screen: Change Status modal. */
+export const listAdminsQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
+  status: z.string().min(1).max(32).optional(),
+  role: z.string().min(1).max(64).optional(),
+  search: z.string().min(1).max(255).optional(),
+  sort: z.string().min(1).max(64).optional(),
+});
+
 export const adminStatusSchema = z.object({
-  status: z.enum(['ACTIVE', 'SUSPENDED', 'DISABLED']),
+  status: z.string().min(1).max(32),
+  reason: z.string().min(1).max(500),
 });
 
-/** PUT /admins/:id/roles — Admins screen: Manage Roles modal. */
 export const assignRolesSchema = z.object({
-  roleKeys: z.array(z.string().min(1).max(64)).min(1).max(10),
+  roleKeys: z.array(z.string().min(1).max(64)).max(10),
+});
+
+export const checkEmailQuerySchema = z.object({
+  email: z.email().max(255),
 });

@@ -43,6 +43,11 @@ export async function issueSession(input: IssueInput): Promise<IssuedSession> {
         expiresAt: new Date(now.getTime() + REFRESH_IDLE_MS),
       },
     });
+    // Drives the Admins table "last login" column (null until first login).
+    await tx.adminUser.update({
+      where: { id: input.adminId },
+      data: { lastLoginAt: now },
+    });
     await logLoginEvent(tx, { adminId: input.adminId, event: 'SESSION_CREATED', meta: input.meta });
     return created;
   });

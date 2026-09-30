@@ -23,10 +23,12 @@ export function paginated<T>(
   page: number,
   limit: number,
   total: number,
-): ApiPaginated<T> {
+  meta?: Record<string, unknown>,
+): ApiPaginated<T> & { meta?: Record<string, unknown> } {
   return {
     success: true,
     data,
     pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    ...(meta !== undefined ? { meta } : {}),
   };
 }

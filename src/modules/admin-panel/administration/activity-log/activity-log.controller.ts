@@ -10,14 +10,16 @@ import { queryAuditLog } from './activity-log.service.js';
 
 const auditQuerySchema = paginationSchema.extend({
   action: z.string().min(1).max(128).optional(),
+  resourceType: z.string().min(1).max(64).optional(),
+  resourceId: z.string().min(1).max(64).optional(),
 });
 
 export const queryAuditHandler = [
   requireAuth,
   requirePerm(PERMISSIONS.AUDIT_READ),
   asyncHandler(async (req: Request, res: Response): Promise<void> => {
-    const { page, limit, action } = auditQuerySchema.parse(req.query);
-    const { data, total } = await queryAuditLog(page, limit, action);
+    const { page, limit, action, resourceType, resourceId } = auditQuerySchema.parse(req.query);
+    const { data, total } = await queryAuditLog({ page, limit, action, resourceType, resourceId });
     res.status(200).json(paginated(data, page, limit, total));
   }),
 ];

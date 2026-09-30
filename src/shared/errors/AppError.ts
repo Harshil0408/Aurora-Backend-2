@@ -39,10 +39,15 @@ export class AppError extends Error {
 
 export const badRequest = (message: string, details?: unknown): AppError =>
   new AppError('BAD_REQUEST', message, details);
-export const unauthorized = (message = 'Unauthorized'): AppError =>
-  new AppError('UNAUTHORIZED', message);
-export const forbidden = (message = 'Forbidden'): AppError => new AppError('FORBIDDEN', message);
-export const notFound = (message = 'Not found'): AppError => new AppError('NOT_FOUND', message);
-export const conflict = (message: string): AppError => new AppError('CONFLICT', message);
+export const unauthorized = (message = 'Unauthorized', details?: unknown): AppError =>
+  new AppError('UNAUTHORIZED', message, details);
+export const forbidden = (message = 'Forbidden', details?: unknown): AppError =>
+  new AppError('FORBIDDEN', message, details);
+export const notFound = (message = 'Not found', details?: unknown): AppError =>
+  new AppError('NOT_FOUND', message, details);
+export const conflict = (message: string, details?: unknown): AppError =>
+  new AppError('CONFLICT', message, details);
+export const unprocessable = (message: string, details?: unknown): AppError =>
+  new AppError('UNPROCESSABLE', message, details);
 export const serviceUnavailable = (message: string): AppError =>
   new AppError('SERVICE_UNAVAILABLE', message);
