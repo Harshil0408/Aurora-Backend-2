@@ -277,6 +277,47 @@ export const openApiSpec = {
           permissionKeys: { type: 'array', items: { type: 'string' }, example: ['admin.read'] },
         },
       },
+      CloneRoleRequest: {
+        type: 'object',
+        required: ['key', 'name'],
+        properties: {
+          key: { type: 'string', example: 'billing-analyst' },
+          name: { type: 'string', example: 'Billing Analyst (copy)' },
+          description: { type: 'string' },
+        },
+      },
+      SetRoleStatusRequest: {
+        type: 'object',
+        required: ['status', 'reason'],
+        properties: {
+          status: { type: 'string', enum: ['ACTIVE', 'INACTIVE'] },
+          reason: { type: 'string', minLength: 3, maxLength: 500 },
+        },
+      },
+      CreatePermissionRequest: {
+        type: 'object',
+        required: ['key'],
+        properties: {
+          key: { type: 'string', example: 'users.ban', description: 'module.action, permanent' },
+          label: { type: 'string', example: 'Ban users' },
+          description: { type: 'string' },
+        },
+      },
+      UpdatePermissionRequest: {
+        type: 'object',
+        properties: {
+          label: { type: 'string', nullable: true },
+          description: { type: 'string', nullable: true },
+        },
+      },
+      SetPermissionStatusRequest: {
+        type: 'object',
+        required: ['status', 'reason'],
+        properties: {
+          status: { type: 'string', enum: ['ACTIVE', 'INACTIVE'] },
+          reason: { type: 'string', minLength: 3, maxLength: 500 },
+        },
+      },
     },
   },
   paths: {
@@ -777,8 +818,90 @@ export const openApiSpec = {
         summary: 'Grouped permission catalog for the checkbox matrix (perm: role.read)',
         security: [{ bearerAuth: [] }],
         responses: {
-          '200': { description: 'Permission groups (Admins, Roles, Activity, Sessions)' },
+          '200': {
+            description:
+              'Permission groups (Admins, Roles, Activity, Sessions, Users, Products, Orders)',
+          },
         },
+      },
+      post: {
+        tags: ['admin'],
+        summary:
+          'Define a new module.action permission from the panel — no code change (perm: role.update)',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/CreatePermissionRequest' },
+            },
+          },
+        },
+        responses: {
+          '201': { description: 'Created permission' },
+          '409': { description: 'Key exists' },
+        },
+      },
+    },
+    '/admin/permissions/list': {
+      get: {
+        tags: ['admin'],
+        summary: 'Flat permission list with role counts, ?status=ACTIVE|INACTIVE (perm: role.read)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'status', in: 'query', schema: { type: 'string', enum: ['ACTIVE', 'INACTIVE'] } },
+        ],
+        responses: { '200': { description: 'Permission list' } },
+      },
+    },
+    '/admin/permissions/me': {
+      get: {
+        tags: ['admin'],
+        summary: 'Own effective permissions for the frontend can() helper (auth-only)',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: '{ permissions: string[] } sorted' } },
+      },
+    },
+    '/admin/permissions/{key}': {
+      patch: {
+        tags: ['admin'],
+        summary: 'Edit permission label/description — key is permanent (perm: role.update)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'key', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/UpdatePermissionRequest' },
+            },
+          },
+        },
+        responses: { '200': { description: 'Updated permission' } },
+      },
+      delete: {
+        tags: ['admin'],
+        summary: 'Delete a custom permission (system + granted are protected; Super-Admin-only)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'key', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Deleted' } },
+      },
+    },
+    '/admin/permissions/{key}/status': {
+      patch: {
+        tags: ['admin'],
+        summary:
+          'Disable (stops authorizing immediately) / re-enable a permission (perm: role.update)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'key', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/SetPermissionStatusRequest' },
+            },
+          },
+        },
+        responses: { '200': { description: 'Updated permission' } },
       },
     },
     '/admin/roles': {
@@ -819,6 +942,46 @@ export const openApiSpec = {
           required: true,
           content: {
             'application/json': { schema: { $ref: '#/components/schemas/UpdateRoleRequest' } },
+          },
+        },
+        responses: { '200': { description: 'Updated role' } },
+      },
+      delete: {
+        tags: ['admin'],
+        summary: 'Delete a custom role (system + assigned are protected; Super-Admin-only)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'key', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          '200': { description: 'Deleted' },
+          '409': { description: 'Role has assignments' },
+        },
+      },
+    },
+    '/admin/roles/{key}/clone': {
+      post: {
+        tags: ['admin'],
+        summary: 'Clone a role with its active grants (perm: role.create)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'key', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': { schema: { $ref: '#/components/schemas/CloneRoleRequest' } },
+          },
+        },
+        responses: { '201': { description: 'Cloned role' } },
+      },
+    },
+    '/admin/roles/{key}/status': {
+      patch: {
+        tags: ['admin'],
+        summary: 'Activate/deactivate a role — INACTIVE grants nothing (perm: role.update)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'key', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': { schema: { $ref: '#/components/schemas/SetRoleStatusRequest' } },
           },
         },
         responses: { '200': { description: 'Updated role' } },

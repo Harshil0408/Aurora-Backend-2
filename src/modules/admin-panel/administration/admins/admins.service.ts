@@ -11,7 +11,7 @@ import type { RequestMeta } from '../../../../shared/utils/requestMeta.js';
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { hashSecret } from '../../auth/crypto/password.js';
 import { normalizeEmail } from '../../auth/utils/email.js';
-import { isSuperAdmin } from '../../../rbac/rbac.service.js';
+import { isSuperAdmin, invalidateAdminPermissions } from '../../../rbac/rbac.service.js';
 import { SUPER_ADMIN_ROLE_KEY } from '../../../rbac/permissions.js';
 import { recordAudit } from '../../../audit/audit.service.js';
 import { logLoginEvent } from '../../auth/services/loginActivity.service.js';
@@ -471,6 +471,9 @@ export async function createAdmin(input: CreateAdminInput): Promise<CreatedAdmin
     return admin;
   });
 
+  // New admin starts at permissionsVersion 0 with a cold cache — nothing to
+  // invalidate (no prior cached set can exist for this id).
+
   // Invite mail is log-only unless SMTP is configured; the UI toast
   // differentiates via this flag. ( Phase 1: creation only, no mail send. )
   return {
@@ -573,6 +576,9 @@ export async function setAdminStatus(
     });
     return next;
   });
+  // Status gates authentication AND the cached set embeds the version bump
+  // below, so a suspended admin loses access on their very next request.
+  await invalidateAdminPermissions(input.targetId);
   return { id: updated.id, status: updated.status as AdminStatusKey, updatedAt: updated.updatedAt };
 }
 
@@ -665,6 +671,11 @@ export async function setAdminRoles(input: RolesInput): Promise<{
     });
   });
 
+  // Role set changed → versioned invalidation so the next request resolves
+  // the new union (PDF §14). Done after commit; a missed DEL is still safe
+  // because the version check rejects stale entries.
+  await invalidateAdminPermissions(input.targetId);
+
   return {
     roles: roles
       .map((r) => ({ key: r.key, name: r.name }))
@@ -692,7 +703,7 @@ export async function revokeAdminSessions(
   const target = await prisma.adminUser.findUnique({ where: { id: input.targetId } });
   if (!target) throw notFound('Admin not found', { code: 'ADMIN_NOT_FOUND' });
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const res = await tx.adminSession.updateMany({
       where: { adminId: input.targetId, revokedAt: null },
       data: { revokedAt: new Date(), revokeReason: 'admin_revoked' },
@@ -716,6 +727,9 @@ export async function revokeAdminSessions(
     });
     return { revokedCount: res.count };
   });
+  // tokenVersion bump above already kills JWTs; drop the perms cache too.
+  await invalidateAdminPermissions(input.targetId);
+  return result;
 }
 
 export async function checkEmailAvailability(email: string): Promise<{ available: boolean }> {

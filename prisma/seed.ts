@@ -17,6 +17,7 @@ import { normalizeEmail } from '../src/modules/admin-panel/auth/utils/email.js';
 import {
   ALL_PERMISSIONS,
   DEFAULT_ROLE_PERMISSIONS,
+  PERMISSION_SEEDS,
   ROLE_SEEDS,
   SUPER_ADMIN_ROLE_KEY,
 } from '../src/modules/rbac/permissions.js';
@@ -24,11 +25,45 @@ import {
 async function seedCatalog(): Promise<void> {
   const prisma = getPrisma();
 
+  // Canonical catalog sync: upsert every known module.action with its
+  // label/description. Panel-created custom permissions are left untouched.
+  for (const seed of PERMISSION_SEEDS) {
+    await prisma.permission.upsert({
+      where: { key: seed.key },
+      update: {
+        module: seed.module,
+        action: seed.action,
+        label: seed.label,
+        description: seed.description,
+        isSystem: seed.isSystem,
+        status: 'ACTIVE',
+      },
+      create: {
+        key: seed.key,
+        module: seed.module,
+        action: seed.action,
+        label: seed.label,
+        description: seed.description,
+        isSystem: seed.isSystem,
+        status: 'ACTIVE',
+      },
+    });
+  }
+  // Legacy guard: any compiled key missing from PERMISSION_SEEDS still gets
+  // a row (split from key) so old guards never 404 on lookup.
   for (const key of ALL_PERMISSIONS) {
+    const known = PERMISSION_SEEDS.some((s) => s.key === key);
+    if (known) continue;
+    const dot = key.indexOf('.');
     await prisma.permission.upsert({
       where: { key },
       update: {},
-      create: { key, description: `Grants ${key}` },
+      create: {
+        key,
+        module: key.slice(0, dot),
+        action: key.slice(dot + 1),
+        description: `Grants ${key}`,
+      },
     });
   }
 

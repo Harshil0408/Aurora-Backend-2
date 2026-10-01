@@ -31,7 +31,12 @@ async function seedTestRoles(): Promise<void> {
   const permKeys = new Set<string>();
   for (const perms of Object.values(DEFAULT_ROLE_PERMISSIONS))
     for (const p of perms) permKeys.add(p);
-  for (const key of permKeys) await prisma.permission.create({ data: { key } });
+  for (const key of permKeys) {
+    const dot = key.indexOf('.');
+    await prisma.permission.create({
+      data: { key, module: key.slice(0, dot), action: key.slice(dot + 1) },
+    });
+  }
 
   const roles = await prisma.adminRole.findMany();
   const perms = await prisma.permission.findMany();

@@ -38,6 +38,12 @@ model AdminUser {
   // Token/session version — bump to revoke all JWTs + sessions
   tokenVersion Int @default(0)
 
+  // Permission cache version — bumped whenever this admin's effective
+  // permissions may have changed (role assignment, role perms, role/
+  // permission status). Redis keys embed this version so stale sets
+  // can never authorize after a change (PDF §13–14).
+  permissionsVersion Int @default(0)
+
   roles    AdminRoleAssignment[]
   sessions AdminSession[]
   recoveryCodes AdminRecoveryCode[]
@@ -69,6 +75,7 @@ model AdminRole {
   name        String  @db.VarChar(128)
   description String? @db.VarChar(500)
   isSystem    Boolean @default(false) // system roles cannot be deleted
+  status      RoleStatus @default(ACTIVE) // INACTIVE roles grant nothing
 
   permissions AdminRolePermission[]
   assignments AdminRoleAssignment[]
@@ -76,16 +83,27 @@ model AdminRole {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([status])
   @@map("admin_roles")
 }
 
 model Permission {
   id          String  @id @default(cuid())
-  key         String  @unique @db.VarChar(64) // e.g. admin.read, role.assign
+  key         String  @unique @db.VarChar(128) // canonical module.action, e.g. users.ban
+  module      String  @db.VarChar(64) // e.g. users, products, orders, admin
+  action      String  @db.VarChar(64) // e.g. view, ban, update_status
+  label       String? @db.VarChar(128) // UI display name, safe to rename
   description String? @db.VarChar(500)
+  status      PermissionStatus @default(ACTIVE) // INACTIVE can never authorize
+  isSystem    Boolean @default(false) // system permissions cannot be deleted
 
   roles AdminRolePermission[]
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([module])
+  @@index([status])
   @@map("permissions")
 }
 
@@ -227,6 +245,16 @@ enum AdminStatus {
   ACTIVE
   SUSPENDED
   DISABLED
+}
+
+enum RoleStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PermissionStatus {
+  ACTIVE
+  INACTIVE
 }
 
 enum LoginEventType {
