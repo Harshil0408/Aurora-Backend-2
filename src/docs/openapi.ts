@@ -1002,6 +1002,39 @@ export const openApiSpec = {
         },
         responses: { '200': { description: 'Updated' } },
       },
+      post: {
+        tags: ['admin'],
+        summary:
+          'Add permissions to a role without touching existing grants — idempotent (perm: role.update; super_admin role is Super-Admin-only)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'key', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': { schema: { $ref: '#/components/schemas/SetPermissionsRequest' } },
+          },
+        },
+        responses: {
+          '200': { description: '{ added, alreadyGranted, permissions, role }' },
+          '400': { description: 'Unknown/inactive key or empty list' },
+        },
+      },
+      delete: {
+        tags: ['admin'],
+        summary:
+          'Remove permissions from a role without touching other grants — idempotent (perm: role.update; super_admin role is Super-Admin-only)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'key', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': { schema: { $ref: '#/components/schemas/SetPermissionsRequest' } },
+          },
+        },
+        responses: {
+          '200': { description: '{ removed, alreadyGranted (not held), permissions, role }' },
+        },
+      },
     },
     '/admin/audit-log': {
       get: {

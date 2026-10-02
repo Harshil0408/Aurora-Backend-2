@@ -652,6 +652,154 @@ export async function setRolePermissions(input: RolePermsInput): Promise<void> {
   await invalidateRoleHolders(role.id);
 }
 
+export interface ModifyRolePermissionsResult {
+  added: string[];
+  alreadyGranted: string[];
+  removed: string[];
+  permissions: string[];
+  role: RoleView;
+}
+
+/**
+ * Add permissions to a role without touching existing grants (idempotent).
+ * Missing keys are created; already-granted keys are skipped.
+ */
+export async function addRolePermissions(
+  input: RolePermsInput,
+): Promise<ModifyRolePermissionsResult> {
+  if (input.roleKey === SUPER_ADMIN_ROLE_KEY && !input.actorIsSuperAdmin) {
+    throw forbidden('Only a Super Admin can modify the super_admin role');
+  }
+  const prisma = getPrisma();
+  const role = await prisma.adminRole.findUnique({ where: { key: input.roleKey } });
+  if (!role) throw notFound('Role not found');
+
+  const permissionKeys = [...new Set(input.permissionKeys)];
+  if (permissionKeys.length === 0) throw badRequest('Provide at least one permission key');
+  for (const k of permissionKeys) {
+    if (!isValidPermissionKeyFormat(k)) throw badRequest(`Invalid permission key: ${k}`);
+  }
+  await assertGrantable(input.actorId, permissionKeys, input.actorIsSuperAdmin);
+
+  const perms = await prisma.permission.findMany({
+    where: { key: { in: permissionKeys } },
+  });
+  if (perms.length !== permissionKeys.length) throw badRequest('Unknown permission key');
+  const inactive = perms.filter((p) => p.status !== 'ACTIVE');
+  if (inactive.length > 0) {
+    throw badRequest(`Cannot grant INACTIVE permission: ${inactive[0]?.key}`, {
+      code: 'PERMISSION_INACTIVE',
+    });
+  }
+
+  const existing = await prisma.adminRolePermission.findMany({
+    where: { roleId: role.id },
+    include: { permission: true },
+  });
+  const existingKeys = new Set(existing.map((p) => p.permission.key));
+  const toAdd = perms.filter((p) => !existingKeys.has(p.key));
+  const alreadyGranted = permissionKeys.filter((k) => existingKeys.has(k)).sort();
+  const addedKeys = toAdd.map((p) => p.key).sort();
+
+  if (toAdd.length > 0) {
+    const before = [...existingKeys].sort();
+    await prisma.$transaction(async (tx) => {
+      await tx.adminRolePermission.createMany({
+        data: toAdd.map((p) => ({ roleId: role.id, permissionId: p.id })),
+        skipDuplicates: true,
+      });
+      await recordAudit(tx, {
+        actorId: input.actorId,
+        action: 'role.permissions.add',
+        resourceType: 'role',
+        resourceId: input.roleKey,
+        before: { permissions: before },
+        after: { permissions: [...before, ...addedKeys].sort(), added: addedKeys },
+        meta: input.meta,
+      });
+    });
+    await invalidateRoleHolders(role.id);
+  }
+
+  const view = await getRoleByKey(input.roleKey);
+  return {
+    added: addedKeys,
+    alreadyGranted,
+    removed: [],
+    permissions: view.permissions,
+    role: view,
+  };
+}
+
+/**
+ * Remove permissions from a role without touching other grants (idempotent).
+ * Keys the role does not hold are reported as `notGranted` via `alreadyGranted`.
+ */
+export async function removeRolePermissions(
+  input: RolePermsInput,
+): Promise<ModifyRolePermissionsResult> {
+  if (input.roleKey === SUPER_ADMIN_ROLE_KEY && !input.actorIsSuperAdmin) {
+    throw forbidden('Only a Super Admin can modify the super_admin role');
+  }
+  const prisma = getPrisma();
+  const role = await prisma.adminRole.findUnique({ where: { key: input.roleKey } });
+  if (!role) throw notFound('Role not found');
+
+  const permissionKeys = [...new Set(input.permissionKeys)];
+  if (permissionKeys.length === 0) throw badRequest('Provide at least one permission key');
+  for (const k of permissionKeys) {
+    if (!isValidPermissionKeyFormat(k)) throw badRequest(`Invalid permission key: ${k}`);
+  }
+
+  const perms = await prisma.permission.findMany({
+    where: { key: { in: permissionKeys } },
+  });
+  if (perms.length !== permissionKeys.length) throw badRequest('Unknown permission key');
+
+  const existing = await prisma.adminRolePermission.findMany({
+    where: { roleId: role.id },
+    include: { permission: true },
+  });
+  const existingByKey = new Map(existing.map((p) => [p.permission.key, p.permission.id]));
+  const toRemove = perms.filter((p) => existingByKey.has(p.key));
+  const removedKeys = toRemove.map((p) => p.key).sort();
+  const notGranted = permissionKeys.filter((k) => !existingByKey.has(k)).sort();
+
+  if (toRemove.length > 0) {
+    const before = existing.map((p) => p.permission.key).sort();
+    await prisma.$transaction(async (tx) => {
+      await tx.adminRolePermission.deleteMany({
+        where: {
+          roleId: role.id,
+          permissionId: { in: toRemove.map((p) => p.id) },
+        },
+      });
+      await recordAudit(tx, {
+        actorId: input.actorId,
+        action: 'role.permissions.remove',
+        resourceType: 'role',
+        resourceId: input.roleKey,
+        before: { permissions: before },
+        after: {
+          permissions: before.filter((k) => !removedKeys.includes(k)),
+          removed: removedKeys,
+        },
+        meta: input.meta,
+      });
+    });
+    await invalidateRoleHolders(role.id);
+  }
+
+  const view = await getRoleByKey(input.roleKey);
+  return {
+    added: [],
+    alreadyGranted: notGranted,
+    removed: removedKeys,
+    permissions: view.permissions,
+    role: view,
+  };
+}
+
 /**
  * Least-privilege grant guard: unless the actor is a Super Admin, every
  * granted key must already be in the actor's own effective set (resolved

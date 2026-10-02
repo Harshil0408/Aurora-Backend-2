@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  addRolePermsHandler,
   cloneRoleHandler,
   createPermissionHandler,
   createRoleHandler,
@@ -10,6 +11,7 @@ import {
   listPermissionsFlatHandler,
   listPermissionsHandler,
   listRolesHandler,
+  removeRolePermsHandler,
   setPermissionStatusHandler,
   setRolePermsHandler,
   setRoleStatusHandler,
@@ -39,6 +41,8 @@ rolesPermissionsRouter.post('/roles', ...createRoleHandler);
 rolesPermissionsRouter.get('/roles/:key', ...getRoleHandler);
 rolesPermissionsRouter.patch('/roles/:key', ...updateRoleHandler);
 rolesPermissionsRouter.put('/roles/:key/permissions', ...setRolePermsHandler);
+rolesPermissionsRouter.post('/roles/:key/permissions', ...addRolePermsHandler);
+rolesPermissionsRouter.delete('/roles/:key/permissions', ...removeRolePermsHandler);
 rolesPermissionsRouter.post('/roles/:key/clone', ...cloneRoleHandler);
 rolesPermissionsRouter.patch('/roles/:key/status', ...setRoleStatusHandler);
 rolesPermissionsRouter.delete('/roles/:key', ...deleteRoleHandler);

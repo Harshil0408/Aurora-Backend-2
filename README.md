@@ -47,7 +47,9 @@ Admin auth: password login → mandatory TOTP 2FA → short JWT + rotating refre
 | PATCH | `/admin/admins/:id/status` | `admin.suspend` | never self / last Super Admin |
 | PUT | `/admin/admins/:id/roles` | `role.assign` | escalation-guarded |
 | GET/POST | `/admin/roles` | `role.read/create` | — |
-| PUT | `/admin/roles/:key/permissions` | `role.update` | super_admin role is Super-Admin-only |
+| PUT | `/admin/roles/:key/permissions` | `role.update` | replace (super_admin: SA-only) |
+| POST | `/admin/roles/:key/permissions` | `role.update` | add-only, idempotent |
+| DELETE | `/admin/roles/:key/permissions` | `role.update` | remove-only, idempotent |
 | GET | `/admin/audit-log` | `audit.read` | paginated, `?action=` filter |
 
 ## Common errors

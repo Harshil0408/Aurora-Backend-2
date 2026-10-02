@@ -8,6 +8,7 @@ import { getEffectivePermissions, isSuperAdmin } from '../../../rbac/rbac.servic
 import { getAuth, requireAuth } from '../../auth/middleware/requireAuth.js';
 import { requirePerm } from '../../auth/middleware/requirePerm.js';
 import {
+  addRolePermissions,
   cloneRole,
   createPermission,
   createRole,
@@ -17,6 +18,7 @@ import {
   listPermissionCatalog,
   listPermissionsFlat,
   listRoles,
+  removeRolePermissions,
   setPermissionStatus,
   setRolePermissions,
   setRoleStatus,
@@ -24,9 +26,11 @@ import {
   updateRole,
 } from './roles-permissions.service.js';
 import {
+  addRolePermissionsSchema,
   cloneRoleSchema,
   createPermissionSchema,
   createRoleSchema,
+  removeRolePermissionsSchema,
   setPermissionStatusSchema,
   setRoleStatusSchema,
   updatePermissionSchema,
@@ -107,6 +111,42 @@ export const setRolePermsHandler = [
       meta: getRequestMeta(req),
     });
     res.status(200).json(ok({ updated: true }));
+  }),
+];
+
+export const addRolePermsHandler = [
+  requireAuth,
+  requirePerm(PERMISSIONS.ROLE_UPDATE),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const auth = getAuth(req);
+    const { key } = roleKeyParams.parse(req.params);
+    const { permissionKeys } = addRolePermissionsSchema.parse(req.body);
+    const result = await addRolePermissions({
+      roleKey: key,
+      permissionKeys,
+      actorId: auth.adminId,
+      actorIsSuperAdmin: await isSuperAdmin(auth.adminId),
+      meta: getRequestMeta(req),
+    });
+    res.status(200).json(ok(result));
+  }),
+];
+
+export const removeRolePermsHandler = [
+  requireAuth,
+  requirePerm(PERMISSIONS.ROLE_UPDATE),
+  asyncHandler(async (req: Request, res: Response): Promise<void> => {
+    const auth = getAuth(req);
+    const { key } = roleKeyParams.parse(req.params);
+    const { permissionKeys } = removeRolePermissionsSchema.parse(req.body);
+    const result = await removeRolePermissions({
+      roleKey: key,
+      permissionKeys,
+      actorId: auth.adminId,
+      actorIsSuperAdmin: await isSuperAdmin(auth.adminId),
+      meta: getRequestMeta(req),
+    });
+    res.status(200).json(ok(result));
   }),
 ];
 

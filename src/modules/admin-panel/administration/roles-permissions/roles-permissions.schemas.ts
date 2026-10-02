@@ -36,6 +36,16 @@ export const updateRolePermissionsSchema = z.object({
   permissionKeys: z.array(permissionKey).max(100),
 });
 
+/** POST /roles/:key/permissions — add grants only (idempotent, existing kept). */
+export const addRolePermissionsSchema = z.object({
+  permissionKeys: z.array(permissionKey).min(1).max(100),
+});
+
+/** DELETE /roles/:key/permissions — remove grants only (idempotent, others kept). */
+export const removeRolePermissionsSchema = z.object({
+  permissionKeys: z.array(permissionKey).min(1).max(100),
+});
+
 /** POST /roles/:key/clone — duplicate a role (grants copied, status reset ACTIVE). */
 export const cloneRoleSchema = z.object({
   key: roleKey,
