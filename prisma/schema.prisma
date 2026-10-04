@@ -89,9 +89,9 @@ model AdminRole {
 
 model Permission {
   id          String  @id @default(cuid())
-  key         String  @unique @db.VarChar(128) // canonical module.action, e.g. users.ban
-  module      String  @db.VarChar(64) // e.g. users, products, orders, admin
-  action      String  @db.VarChar(64) // e.g. view, ban, update_status
+  key         String  @unique @db.VarChar(128) // canonical module.action, e.g. session.revoke
+  module      String  @db.VarChar(64) // e.g. admin, role, audit, session
+  action      String  @db.VarChar(64) // e.g. read, create, revoke
   label       String? @db.VarChar(128) // UI display name, safe to rename
   description String? @db.VarChar(500)
   status      PermissionStatus @default(ACTIVE) // INACTIVE can never authorize

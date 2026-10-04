@@ -81,7 +81,17 @@ export async function createRole(input: CreateRoleInput): Promise<RoleView> {
   const existing = await prisma.adminRole.findUnique({ where: { key: input.key } });
   if (existing) throw conflict('Role already exists');
 
-  const permissionKeys = [...new Set(input.permissionKeys ?? [])];
+  // House rule: omitted permissionKeys => new role starts with EVERY ACTIVE
+  // catalog permission (trim afterwards via PUT/POST/DELETE). An explicit
+  // array (even empty) is honored as-is for least-privilege creation.
+  let permissionKeys = [...new Set(input.permissionKeys ?? [])];
+  if (input.permissionKeys === undefined) {
+    const active = await prisma.permission.findMany({
+      where: { status: 'ACTIVE' },
+      select: { key: true },
+    });
+    permissionKeys = active.map((p) => p.key);
+  }
   for (const k of permissionKeys) {
     if (!isValidPermissionKeyFormat(k)) throw badRequest(`Invalid permission key: ${k}`);
   }
@@ -399,13 +409,21 @@ interface CreatePermissionInput {
   label?: string | undefined;
   description?: string | undefined;
   actorId: string;
+  actorIsSuperAdmin: boolean;
   meta: RequestMeta;
 }
 
-/** Define a new module.action permission from the panel — no code change. */
+/**
+ * Reserve a new module.action key. Super-Admin-only: the catalog is
+ * code-defined and seeded — a key created here enforces nothing until a
+ * developer wires a `requirePerm(...)` guard for it and deploys.
+ */
 export async function createPermission(input: CreatePermissionInput): Promise<PermissionView> {
+  if (!input.actorIsSuperAdmin) {
+    throw forbidden('Only a Super Admin can define new permission keys');
+  }
   if (!isValidPermissionKeyFormat(input.key)) {
-    throw badRequest('Key must be module.action (lowercase, e.g. users.ban)');
+    throw badRequest('Key must be module.action (lowercase, e.g. session.revoke)');
   }
   const prisma = getPrisma();
   const existing = await prisma.permission.findUnique({ where: { key: input.key } });

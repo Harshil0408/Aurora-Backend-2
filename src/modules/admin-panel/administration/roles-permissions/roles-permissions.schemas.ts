@@ -15,9 +15,13 @@ const permissionKey = z
   .max(128)
   .regex(
     /^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/,
-    'Key must be module.action (lowercase, e.g. users.ban). Keys are permanent.',
+    'Key must be module.action (lowercase, e.g. session.revoke). Keys are permanent.',
   );
 
+/**
+ * POST /roles — omit permissionKeys to grant every ACTIVE catalog permission
+ * by default (trim afterwards); pass an explicit array for least-privilege.
+ */
 export const createRoleSchema = z.object({
   key: roleKey,
   name: z.string().min(1).max(128),

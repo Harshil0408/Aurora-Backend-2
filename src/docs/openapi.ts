@@ -261,6 +261,13 @@ export const openApiSpec = {
           },
           name: { type: 'string', example: 'Billing Analyst' },
           description: { type: 'string', example: 'Read-only billing reports' },
+          permissionKeys: {
+            type: 'array',
+            items: { type: 'string' },
+            example: ['admin.read'],
+            description:
+              'Optional. Omitted = role starts with every ACTIVE catalog permission (trim afterwards). Explicit array (even empty) is honored as-is.',
+          },
         },
       },
       UpdateRoleRequest: {
@@ -287,30 +294,6 @@ export const openApiSpec = {
         },
       },
       SetRoleStatusRequest: {
-        type: 'object',
-        required: ['status', 'reason'],
-        properties: {
-          status: { type: 'string', enum: ['ACTIVE', 'INACTIVE'] },
-          reason: { type: 'string', minLength: 3, maxLength: 500 },
-        },
-      },
-      CreatePermissionRequest: {
-        type: 'object',
-        required: ['key'],
-        properties: {
-          key: { type: 'string', example: 'users.ban', description: 'module.action, permanent' },
-          label: { type: 'string', example: 'Ban users' },
-          description: { type: 'string' },
-        },
-      },
-      UpdatePermissionRequest: {
-        type: 'object',
-        properties: {
-          label: { type: 'string', nullable: true },
-          description: { type: 'string', nullable: true },
-        },
-      },
-      SetPermissionStatusRequest: {
         type: 'object',
         required: ['status', 'reason'],
         properties: {
@@ -815,31 +798,13 @@ export const openApiSpec = {
     '/admin/permissions': {
       get: {
         tags: ['admin'],
-        summary: 'Grouped permission catalog for the checkbox matrix (perm: role.read)',
+        summary:
+          'Grouped permission catalog for the checkbox matrix — read-only, keys are code-defined (perm: role.read)',
         security: [{ bearerAuth: [] }],
         responses: {
           '200': {
-            description:
-              'Permission groups (Admins, Roles, Activity, Sessions, Users, Products, Orders)',
+            description: 'Permission groups (Admins, Roles, Activity, Sessions)',
           },
-        },
-      },
-      post: {
-        tags: ['admin'],
-        summary:
-          'Define a new module.action permission from the panel — no code change (perm: role.update)',
-        security: [{ bearerAuth: [] }],
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/CreatePermissionRequest' },
-            },
-          },
-        },
-        responses: {
-          '201': { description: 'Created permission' },
-          '409': { description: 'Key exists' },
         },
       },
     },
@@ -862,48 +827,6 @@ export const openApiSpec = {
         responses: { '200': { description: '{ permissions: string[] } sorted' } },
       },
     },
-    '/admin/permissions/{key}': {
-      patch: {
-        tags: ['admin'],
-        summary: 'Edit permission label/description — key is permanent (perm: role.update)',
-        security: [{ bearerAuth: [] }],
-        parameters: [{ name: 'key', in: 'path', required: true, schema: { type: 'string' } }],
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/UpdatePermissionRequest' },
-            },
-          },
-        },
-        responses: { '200': { description: 'Updated permission' } },
-      },
-      delete: {
-        tags: ['admin'],
-        summary: 'Delete a custom permission (system + granted are protected; Super-Admin-only)',
-        security: [{ bearerAuth: [] }],
-        parameters: [{ name: 'key', in: 'path', required: true, schema: { type: 'string' } }],
-        responses: { '200': { description: 'Deleted' } },
-      },
-    },
-    '/admin/permissions/{key}/status': {
-      patch: {
-        tags: ['admin'],
-        summary:
-          'Disable (stops authorizing immediately) / re-enable a permission (perm: role.update)',
-        security: [{ bearerAuth: [] }],
-        parameters: [{ name: 'key', in: 'path', required: true, schema: { type: 'string' } }],
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/SetPermissionStatusRequest' },
-            },
-          },
-        },
-        responses: { '200': { description: 'Updated permission' } },
-      },
-    },
     '/admin/roles': {
       get: {
         tags: ['admin'],
@@ -913,7 +836,8 @@ export const openApiSpec = {
       },
       post: {
         tags: ['admin'],
-        summary: 'Create role with zero permissions (perm: role.create; key is a permanent slug)',
+        summary:
+          'Create role — defaults to all ACTIVE permissions, pass permissionKeys to override (perm: role.create; key is a permanent slug)',
         security: [{ bearerAuth: [] }],
         requestBody: {
           required: true,

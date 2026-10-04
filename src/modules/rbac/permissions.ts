@@ -9,7 +9,10 @@
  * (`requirePerm(PERMISSIONS.ADMIN_READ)`) break at compile time on rename.
  *
  * Naming: `module.action` — lowercase, underscores allowed
- * (e.g. `users.view_details`, `orders.update_status`).
+ * (e.g. `session.revoke`, `audit.read`).
+ *
+ * The catalog lists ONLY implemented modules. When a new module ships,
+ * its keys are added here + seeded — never invented from the panel.
  */
 
 export const PERMISSION_KEY_RE = /^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/;
@@ -38,28 +41,8 @@ export const PERMISSIONS = {
   AUDIT_READ: 'audit.read',
   SESSION_READ: 'session.read',
   SESSION_REVOKE: 'session.revoke',
-  // Users module (PDF §3 — e-commerce customers/operators area)
-  USERS_VIEW: 'users.view',
-  USERS_VIEW_DETAILS: 'users.view_details',
-  USERS_ADD: 'users.add',
-  USERS_UPDATE: 'users.update',
-  USERS_DELETE: 'users.delete',
-  USERS_BAN: 'users.ban',
-  USERS_UNBAN: 'users.unban',
-  USERS_EXPORT: 'users.export',
-  // Products catalog
-  PRODUCTS_VIEW: 'products.view',
-  PRODUCTS_ADD: 'products.add',
-  PRODUCTS_UPDATE: 'products.update',
-  PRODUCTS_DELETE: 'products.delete',
-  PRODUCTS_PUBLISH: 'products.publish',
-  PRODUCTS_ARCHIVE: 'products.archive',
-  // Orders
-  ORDERS_VIEW: 'orders.view',
-  ORDERS_UPDATE_STATUS: 'orders.update_status',
-  ORDERS_CANCEL: 'orders.cancel',
-  ORDERS_REFUND: 'orders.refund',
-  ORDERS_EXPORT: 'orders.export',
+  // NOTE: users/products/orders keys live here ONLY once those modules
+  // ship. Do not pre-seed future modules — the catalog mirrors reality.
 } as const;
 
 export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -143,25 +126,6 @@ export const PERMISSION_SEEDS: readonly PermissionSeed[] = [
   seed('audit.read', 'View activity log', 'Read the admin audit trail'),
   seed('session.read', 'View sessions', 'List admin sessions'),
   seed('session.revoke', 'Revoke sessions', 'Revoke any admin session'),
-  seed('users.view', 'View users', 'List users'),
-  seed('users.view_details', 'View user details', 'Open a single user profile'),
-  seed('users.add', 'Add users', 'Create user accounts'),
-  seed('users.update', 'Edit users', 'Update user accounts'),
-  seed('users.delete', 'Delete users', 'Delete user accounts'),
-  seed('users.ban', 'Ban users', 'Ban abusive accounts'),
-  seed('users.unban', 'Unban users', 'Lift a ban'),
-  seed('users.export', 'Export users', 'Export user lists'),
-  seed('products.view', 'View products', 'List products'),
-  seed('products.add', 'Add products', 'Create products'),
-  seed('products.update', 'Edit products', 'Update products'),
-  seed('products.delete', 'Delete products', 'Delete products'),
-  seed('products.publish', 'Publish products', 'Publish products to storefront'),
-  seed('products.archive', 'Archive products', 'Archive products'),
-  seed('orders.view', 'View orders', 'List orders'),
-  seed('orders.update_status', 'Update order status', 'Advance order status'),
-  seed('orders.cancel', 'Cancel orders', 'Cancel orders'),
-  seed('orders.refund', 'Refund orders', 'Issue refunds'),
-  seed('orders.export', 'Export orders', 'Export order lists'),
 ];
 
 export function hasPermission(granted: ReadonlySet<string>, required: string): boolean {
@@ -237,7 +201,7 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
       {
         key: PERMISSIONS.ROLE_CREATE,
         label: 'Create roles',
-        description: 'Create new roles (start with zero permissions)',
+        description: 'Create new roles (start with all active permissions)',
       },
       {
         key: PERMISSIONS.ROLE_UPDATE,
@@ -272,75 +236,6 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
         label: 'Revoke sessions',
         description: 'Revoke any admin session',
       },
-    ],
-  },
-  {
-    group: 'users',
-    label: 'Users',
-    permissions: [
-      { key: PERMISSIONS.USERS_VIEW, label: 'View users', description: 'List users' },
-      {
-        key: PERMISSIONS.USERS_VIEW_DETAILS,
-        label: 'View user details',
-        description: 'Open a single user profile',
-      },
-      { key: PERMISSIONS.USERS_ADD, label: 'Add users', description: 'Create user accounts' },
-      { key: PERMISSIONS.USERS_UPDATE, label: 'Edit users', description: 'Update user accounts' },
-      {
-        key: PERMISSIONS.USERS_DELETE,
-        label: 'Delete users',
-        description: 'Delete user accounts',
-      },
-      { key: PERMISSIONS.USERS_BAN, label: 'Ban users', description: 'Ban abusive accounts' },
-      { key: PERMISSIONS.USERS_UNBAN, label: 'Unban users', description: 'Lift a ban' },
-      { key: PERMISSIONS.USERS_EXPORT, label: 'Export users', description: 'Export user lists' },
-    ],
-  },
-  {
-    group: 'products',
-    label: 'Products',
-    permissions: [
-      {
-        key: PERMISSIONS.PRODUCTS_VIEW,
-        label: 'View products',
-        description: 'List products',
-      },
-      { key: PERMISSIONS.PRODUCTS_ADD, label: 'Add products', description: 'Create products' },
-      {
-        key: PERMISSIONS.PRODUCTS_UPDATE,
-        label: 'Edit products',
-        description: 'Update products',
-      },
-      {
-        key: PERMISSIONS.PRODUCTS_DELETE,
-        label: 'Delete products',
-        description: 'Delete products',
-      },
-      {
-        key: PERMISSIONS.PRODUCTS_PUBLISH,
-        label: 'Publish products',
-        description: 'Publish products to storefront',
-      },
-      {
-        key: PERMISSIONS.PRODUCTS_ARCHIVE,
-        label: 'Archive products',
-        description: 'Archive products',
-      },
-    ],
-  },
-  {
-    group: 'orders',
-    label: 'Orders',
-    permissions: [
-      { key: PERMISSIONS.ORDERS_VIEW, label: 'View orders', description: 'List orders' },
-      {
-        key: PERMISSIONS.ORDERS_UPDATE_STATUS,
-        label: 'Update order status',
-        description: 'Advance order status',
-      },
-      { key: PERMISSIONS.ORDERS_CANCEL, label: 'Cancel orders', description: 'Cancel orders' },
-      { key: PERMISSIONS.ORDERS_REFUND, label: 'Refund orders', description: 'Issue refunds' },
-      { key: PERMISSIONS.ORDERS_EXPORT, label: 'Export orders', description: 'Export order lists' },
     ],
   },
 ];

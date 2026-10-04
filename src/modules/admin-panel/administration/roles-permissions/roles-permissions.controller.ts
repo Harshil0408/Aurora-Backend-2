@@ -212,6 +212,10 @@ export const listPermissionsFlatHandler = [
   }),
 ];
 
+/**
+ * NOT ROUTED (intentional): permission keys are code-defined + seeded.
+ * Kept for scripts/offline use only — the frontend manages grants, not keys.
+ */
 export const createPermissionHandler = [
   requireAuth,
   requirePerm(PERMISSIONS.ROLE_UPDATE),
@@ -221,6 +225,7 @@ export const createPermissionHandler = [
     const perm = await createPermission({
       ...body,
       actorId: auth.adminId,
+      actorIsSuperAdmin: await isSuperAdmin(auth.adminId),
       meta: getRequestMeta(req),
     });
     res.status(201).json(ok(perm));

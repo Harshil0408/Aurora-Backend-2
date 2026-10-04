@@ -2,9 +2,7 @@ import { Router } from 'express';
 import {
   addRolePermsHandler,
   cloneRoleHandler,
-  createPermissionHandler,
   createRoleHandler,
-  deletePermissionHandler,
   deleteRoleHandler,
   getMyPermissionsHandler,
   getRoleHandler,
@@ -12,29 +10,27 @@ import {
   listPermissionsHandler,
   listRolesHandler,
   removeRolePermsHandler,
-  setPermissionStatusHandler,
   setRolePermsHandler,
   setRoleStatusHandler,
-  updatePermissionHandler,
   updateRoleHandler,
 } from './roles-permissions.controller.js';
 
 /**
  * Roles & Permissions screen routes (admin panel → Administration group).
- * Mounted under /api/v1/admin via administrationRouter. Existing paths are
- * frozen — new endpoints only ADD paths (clone/status/permissions CRUD/me).
+ * Mounted under /api/v1/admin via administrationRouter.
+ *
+ * Frontend surface is intentionally narrow: list roles + catalog, add roles,
+ * and check/uncheck permissions on roles. Permission keys are code-defined
+ * and seeded — their create/update/status/delete handlers exist in the
+ * controller/service but are NOT routed.
  */
 export const rolesPermissionsRouter: Router = Router();
 
 // Self permissions for the frontend can() helper (auth-only).
 rolesPermissionsRouter.get('/permissions/me', ...getMyPermissionsHandler);
-// Grouped matrix (existing) + flat list (new, ?status= filter).
+// Grouped matrix + flat list (?status= filter) — read-only catalog for the UI.
 rolesPermissionsRouter.get('/permissions', ...listPermissionsHandler);
 rolesPermissionsRouter.get('/permissions/list', ...listPermissionsFlatHandler);
-rolesPermissionsRouter.post('/permissions', ...createPermissionHandler);
-rolesPermissionsRouter.patch('/permissions/:key', ...updatePermissionHandler);
-rolesPermissionsRouter.patch('/permissions/:key/status', ...setPermissionStatusHandler);
-rolesPermissionsRouter.delete('/permissions/:key', ...deletePermissionHandler);
 
 rolesPermissionsRouter.get('/roles', ...listRolesHandler);
 rolesPermissionsRouter.post('/roles', ...createRoleHandler);
