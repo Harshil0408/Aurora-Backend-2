@@ -301,6 +301,74 @@ export const openApiSpec = {
           reason: { type: 'string', minLength: 3, maxLength: 500 },
         },
       },
+      ActivityEntry: {
+        type: 'object',
+        required: [
+          'id',
+          'timestamp',
+          'action',
+          'actionLabel',
+          'category',
+          'actor',
+          'resource',
+          'ip',
+          'changes',
+          'requestId',
+        ],
+        properties: {
+          id: { type: 'string', example: 'cm3x7k9q20001s8n2abcd1234' },
+          timestamp: { type: 'string', format: 'date-time' },
+          action: { type: 'string', example: 'role.permissions_updated' },
+          actionLabel: { type: 'string', example: 'Role updated' },
+          category: { type: 'string', example: 'Roles' },
+          actor: {
+            type: 'object',
+            required: ['id', 'email', 'name'],
+            properties: {
+              id: { type: 'string' },
+              email: { type: 'string', example: 'aisha@mercato.com' },
+              name: { type: 'string', example: 'Aisha' },
+            },
+            description: 'Write-time snapshot — survives later renames',
+          },
+          resource: {
+            type: 'object',
+            required: ['type', 'id', 'label'],
+            properties: {
+              type: { type: 'string', example: 'role' },
+              id: { type: 'string', example: 'billing-analyst' },
+              label: { type: 'string', example: 'Billing Analyst' },
+            },
+            description: 'Write-time snapshot — survives later renames/deletes',
+          },
+          ip: { type: 'string', example: '84.121.9.40' },
+          userAgent: { type: 'string', nullable: true },
+          changes: {
+            type: 'array',
+            items: {
+              type: 'object',
+              required: ['field', 'before', 'after'],
+              properties: {
+                field: { type: 'string', example: 'permissions' },
+                before: { type: 'string', example: 'admin.read' },
+                after: { type: 'string', example: 'admin.read, audit.read' },
+              },
+            },
+            description: 'Pre-formatted display strings (— when empty); may be []',
+          },
+          requestId: { type: 'string' },
+        },
+      },
+      ActionOption: {
+        type: 'object',
+        required: ['action', 'label', 'category', 'count'],
+        properties: {
+          action: { type: 'string', example: 'role.permissions_updated' },
+          label: { type: 'string', example: 'Role updated' },
+          category: { type: 'string', example: 'Roles' },
+          count: { type: 'integer', example: 12 },
+        },
+      },
     },
   },
   paths: {
@@ -974,6 +1042,88 @@ export const openApiSpec = {
           { name: 'resourceId', in: 'query', schema: { type: 'string' } },
         ],
         responses: { '200': { description: 'Audit entries' } },
+      },
+    },
+    '/admin/activity': {
+      get: {
+        tags: ['admin'],
+        summary: 'Activity feed: snapshot entries + derived diffs, newest first (perm: audit.read)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 20 } },
+          {
+            name: 'action',
+            in: 'query',
+            schema: { type: 'string' },
+            description: 'Feed key (e.g. role.permissions_updated); repeatable = OR',
+          },
+          {
+            name: 'q',
+            in: 'query',
+            schema: { type: 'string' },
+            description: 'Substring over actor, resource, IP, action + label',
+          },
+          {
+            name: 'actor',
+            in: 'query',
+            schema: { type: 'string' },
+            description: 'Exact actor email or id',
+          },
+          {
+            name: 'from',
+            in: 'query',
+            schema: { type: 'string', example: '2026-09-01' },
+            description: 'YYYY-MM-DD inclusive, start of day UTC',
+          },
+          {
+            name: 'to',
+            in: 'query',
+            schema: { type: 'string', example: '2026-09-30' },
+            description: 'YYYY-MM-DD inclusive, end of day UTC',
+          },
+          {
+            name: 'sort',
+            in: 'query',
+            schema: { type: 'string', enum: ['newest', 'oldest'], default: 'newest' },
+          },
+        ],
+        responses: {
+          '200': { description: 'Paginated ActivityEntry list' },
+          '400': { description: 'Bad page/limit/sort/date, or from after to' },
+        },
+      },
+    },
+    '/admin/activity/actions': {
+      get: {
+        tags: ['admin'],
+        summary:
+          'Feed filter options: distinct actions + counts honoring q/actor/from/to (perm: audit.read)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'q',
+            in: 'query',
+            schema: { type: 'string' },
+            description: 'Same free-text filter as the list endpoint',
+          },
+          { name: 'actor', in: 'query', schema: { type: 'string' } },
+          { name: 'from', in: 'query', schema: { type: 'string' } },
+          { name: 'to', in: 'query', schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'ActionOption list (empty when no entries)' } },
+      },
+    },
+    '/admin/activity/{id}': {
+      get: {
+        tags: ['admin'],
+        summary: 'Single activity entry for deep links / full diffs (perm: audit.read)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          '200': { description: 'ActivityEntry' },
+          '404': { description: 'Unknown entry id' },
+        },
       },
     },
   },

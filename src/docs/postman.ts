@@ -114,6 +114,14 @@ const EXTRA_QUERY: Record<string, { key: string; value: string; disabled?: boole
     { key: 'limit', value: '20' },
     { key: 'action', value: 'admin.suspend', disabled: true },
   ],
+  'get /admin/activity': [
+    { key: 'page', value: '1' },
+    { key: 'limit', value: '20' },
+    { key: 'action', value: 'role.permissions_updated', disabled: true },
+    { key: 'q', value: 'aisha', disabled: true },
+    { key: 'sort', value: 'newest', disabled: true },
+  ],
+  'get /admin/activity/actions': [{ key: 'q', value: 'aisha', disabled: true }],
 };
 
 /** Placeholder values for path params (:id → <admin-id>, …). */

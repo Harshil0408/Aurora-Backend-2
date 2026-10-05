@@ -225,18 +225,26 @@ model AdminAuditLog {
   id         String   @id @default(cuid())
   actorId    String?
   actor      AdminUser? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  // Write-time snapshots (spec §3.1): history must read correctly after the
+  // actor is renamed or the target role/admin is deleted. Resolved by
+  // recordAudit inside the writing transaction; never JOINed at read time.
+  actorEmail    String? @db.VarChar(320)
+  actorName     String? @db.VarChar(128)
+  resourceLabel String? @db.VarChar(320)
   action     String   @db.VarChar(128) // e.g. admin.suspend, role.assign
   resourceType String @db.VarChar(64)
   resourceId   String? @db.VarChar(64)
   before       Json?
   after        Json?
   ipAddress    String? @db.VarChar(64)
+  userAgent    String? // unbounded: UA strings vary wildly in length
   requestId    String? @db.VarChar(64)
   createdAt    DateTime @default(now())
 
   @@index([actorId, createdAt])
   @@index([resourceType, resourceId])
   @@index([action, createdAt])
+  @@index([createdAt])
   @@map("admin_audit_log")
 }
 

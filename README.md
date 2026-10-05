@@ -51,6 +51,9 @@ Admin auth: password login → mandatory TOTP 2FA → short JWT + rotating refre
 | POST | `/admin/roles/:key/permissions` | `role.update` | add-only, idempotent |
 | DELETE | `/admin/roles/:key/permissions` | `role.update` | remove-only, idempotent |
 | GET | `/admin/audit-log` | `audit.read` | paginated, `?action=` filter |
+| GET | `/admin/activity` | `audit.read` | feed: snapshots + diffs, `?action=&q=&actor=&from=&to=&sort=` |
+| GET | `/admin/activity/actions` | `audit.read` | filter options + counts |
+| GET | `/admin/activity/:id` | `audit.read` | single entry |
 
 ## Common errors
 

@@ -658,7 +658,10 @@ export async function setRolePermissions(input: RolePermsInput): Promise<void> {
     }
     await recordAudit(tx, {
       actorId: input.actorId,
-      action: 'role.update',
+      // Distinct from rename edits ('role.update'): the Activity feed keys
+      // grant replacement as its own event. Pre-rename history rows still
+      // stored as 'role.update' are disambiguated by payload at read time.
+      action: 'role.permissions_updated',
       resourceType: 'role',
       resourceId: input.roleKey,
       before: { permissions: before },
