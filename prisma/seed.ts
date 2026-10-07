@@ -21,6 +21,46 @@ import {
   ROLE_SEEDS,
   SUPER_ADMIN_ROLE_KEY,
 } from '../src/modules/rbac/permissions.js';
+import { STORE_PERMISSION_SEEDS } from '../src/modules/seller-panel/team/store-permissions.js';
+
+const SUBSCRIPTION_PLAN_SEEDS = [
+  {
+    key: 'free',
+    name: 'Free',
+    description: 'Explore the platform with core limits.',
+    pricePaise: 0,
+    billingCycle: 'MONTHLY',
+    limits: { 'products.max': 20, 'staff.max': 2, 'orders.monthly': 100 },
+    trialDays: 0,
+  },
+  {
+    key: 'starter',
+    name: 'Starter',
+    description: 'For new stores finding traction.',
+    pricePaise: 49900,
+    billingCycle: 'MONTHLY',
+    limits: { 'products.max': 100, 'staff.max': 5, 'orders.monthly': 1000 },
+    trialDays: 14,
+  },
+  {
+    key: 'growth',
+    name: 'Growth',
+    description: 'For growing catalogs and teams.',
+    pricePaise: 149900,
+    billingCycle: 'MONTHLY',
+    limits: { 'products.max': 1000, 'staff.max': 15, 'orders.monthly': 10000 },
+    trialDays: 14,
+  },
+  {
+    key: 'pro',
+    name: 'Pro',
+    description: 'For high-volume sellers.',
+    pricePaise: 399900,
+    billingCycle: 'MONTHLY',
+    limits: { 'products.max': 10000, 'staff.max': 50, 'orders.monthly': 100000 },
+    trialDays: 14,
+  },
+] as const;
 
 async function seedCatalog(): Promise<void> {
   const prisma = getPrisma();
@@ -108,6 +148,57 @@ async function seedCatalog(): Promise<void> {
   }
 
   logger.info(`Seeded ${permissionRows.length} permissions, ${roleRows.length} roles`);
+
+  // Store-domain catalog (resource:action) — global, shared by all stores.
+  for (const seed of STORE_PERMISSION_SEEDS) {
+    await prisma.storePermission.upsert({
+      where: { key: seed.key },
+      update: {
+        resource: seed.resource,
+        action: seed.action,
+        label: seed.label,
+        description: seed.description,
+        isSystem: true,
+      },
+      create: {
+        key: seed.key,
+        resource: seed.resource,
+        action: seed.action,
+        label: seed.label,
+        description: seed.description,
+        isSystem: true,
+      },
+    });
+  }
+
+  // Subscription plans (SaaS billing; payment provider attaches later).
+  for (const plan of SUBSCRIPTION_PLAN_SEEDS) {
+    await prisma.subscriptionPlan.upsert({
+      where: { key: plan.key },
+      update: {
+        name: plan.name,
+        description: plan.description,
+        pricePaise: plan.pricePaise,
+        billingCycle: plan.billingCycle,
+        limits: plan.limits as unknown as object,
+        trialDays: plan.trialDays,
+        isActive: true,
+      },
+      create: {
+        key: plan.key,
+        name: plan.name,
+        description: plan.description,
+        pricePaise: plan.pricePaise,
+        billingCycle: plan.billingCycle,
+        limits: plan.limits as unknown as object,
+        trialDays: plan.trialDays,
+        isActive: true,
+      },
+    });
+  }
+  logger.info(
+    `Seeded ${STORE_PERMISSION_SEEDS.length} store permissions, ${SUBSCRIPTION_PLAN_SEEDS.length} plans`,
+  );
 }
 
 async function bootstrapSuperAdmin(): Promise<void> {

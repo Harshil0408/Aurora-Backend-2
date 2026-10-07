@@ -14,6 +14,10 @@ export const openApiSpec = {
   tags: [
     { name: 'auth', description: 'Login, 2FA, sessions, passwords (refresh cookie: admin_rt)' },
     { name: 'admin', description: 'Admin + role management (permission-gated)' },
+    {
+      name: 'seller',
+      description: 'Seller panel: auth, stores, team, billing (refresh cookie: seller_rt)',
+    },
   ],
   components: {
     securitySchemes: {
@@ -1124,6 +1128,237 @@ export const openApiSpec = {
           '200': { description: 'ActivityEntry' },
           '404': { description: 'Unknown entry id' },
         },
+      },
+    },
+    '/seller/auth/register': {
+      post: {
+        tags: ['seller'],
+        summary: 'Register a seller user → session JWT + refresh cookie (seller_rt)',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['email', 'password'],
+                properties: {
+                  email: { type: 'string', format: 'email' },
+                  password: { type: 'string', minLength: 12 },
+                  name: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': { description: 'Registered' },
+          '409': { description: 'Email in use' },
+        },
+      },
+    },
+    '/seller/auth/login': {
+      post: {
+        tags: ['seller'],
+        summary: 'Seller login → session JWT + refresh cookie (seller_rt)',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': { schema: { $ref: '#/components/schemas/LoginRequest' } },
+          },
+        },
+        responses: {
+          '200': { description: 'Logged in' },
+          '401': { description: 'Bad credentials, locked, or suspended' },
+        },
+      },
+    },
+    '/seller/auth/me': {
+      get: {
+        tags: ['seller'],
+        summary: 'Seller profile with store memberships',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Profile' }, '401': { description: 'Unauthorized' } },
+      },
+    },
+    '/seller/stores': {
+      get: {
+        tags: ['seller'],
+        summary: 'List my stores (workspace switcher source)',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Store list with role + subscription' } },
+      },
+      post: {
+        tags: ['seller'],
+        summary: 'Create store → system roles + owner membership + trial subscription',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['name'],
+                properties: {
+                  name: { type: 'string', example: 'Aurora Fashion' },
+                  slug: { type: 'string' },
+                  category: { type: 'string' },
+                  country: { type: 'string' },
+                  currency: { type: 'string', example: 'INR' },
+                  timezone: { type: 'string', example: 'Asia/Kolkata' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': { description: 'Store created' },
+          '409': { description: 'Slug in use' },
+        },
+      },
+    },
+    '/seller/stores/switch': {
+      post: {
+        tags: ['seller'],
+        summary: 'Validate membership and switch workspace context',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['storeId'],
+                properties: { storeId: { type: 'string' } },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': { description: 'Active store context (role + permissions)' },
+          '403': { description: 'No access to this store' },
+        },
+      },
+    },
+    '/seller/stores/{storeId}': {
+      get: {
+        tags: ['seller'],
+        summary: 'Store detail (needs store:read in this store)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'storeId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Store' }, '403': { description: 'No store access' } },
+      },
+      patch: {
+        tags: ['seller'],
+        summary: 'Update store profile (needs store:update in this store)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'storeId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Updated' } },
+      },
+    },
+    '/seller/team/invitations/accept': {
+      post: {
+        tags: ['seller'],
+        summary: 'Accept a store invitation (email must match the invite)',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['token'],
+                properties: { token: { type: 'string' } },
+              },
+            },
+          },
+        },
+        responses: { '200': { description: 'Membership created' } },
+      },
+    },
+    '/seller/team/{storeId}/roles': {
+      get: {
+        tags: ['seller'],
+        summary: 'List store roles + permissions (needs role:read)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'storeId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Role list' } },
+      },
+      post: {
+        tags: ['seller'],
+        summary: 'Create a custom store role (needs role:create)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'storeId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '201': { description: 'Role created' } },
+      },
+    },
+    '/seller/team/{storeId}/members': {
+      get: {
+        tags: ['seller'],
+        summary: 'List store members (needs staff:invite)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'storeId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Member list' } },
+      },
+    },
+    '/seller/team/{storeId}/invitations': {
+      get: {
+        tags: ['seller'],
+        summary: 'List store invitations (needs staff:invite)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'storeId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Invitation list' } },
+      },
+      post: {
+        tags: ['seller'],
+        summary: 'Invite a team member by email + role (needs staff:invite)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'storeId', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['email', 'roleKey'],
+                properties: {
+                  email: { type: 'string', format: 'email' },
+                  roleKey: { type: 'string', example: 'staff' },
+                },
+              },
+            },
+          },
+        },
+        responses: { '201': { description: 'Invited (token returned once)' } },
+      },
+    },
+    '/seller/billing/plans': {
+      get: {
+        tags: ['seller'],
+        summary: 'List subscription plans',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Plan list' } },
+      },
+    },
+    '/seller/billing/{storeId}/subscription': {
+      get: {
+        tags: ['seller'],
+        summary: 'Current store subscription (needs billing:read)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'storeId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Subscription or null' } },
+      },
+    },
+    '/seller/activity/{storeId}/audit': {
+      get: {
+        tags: ['seller'],
+        summary: 'Store audit log, newest first (needs store:read)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'storeId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 20 } },
+        ],
+        responses: { '200': { description: 'Audit entries' } },
       },
     },
   },

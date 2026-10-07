@@ -290,3 +290,341 @@ enum LoginOutcome {
   SUCCESS
   FAILURE
 }
+
+// ─── Seller panel (tenant/store-scoped domain) ──────────────────────────────
+// Identity is intentionally separate from AdminUser: platform admins govern
+// the marketplace, seller users own/belong to stores. One user ⇄ N stores
+// via StoreMembership (UNIQUE(storeId,userId)). Every seller-side resource
+// must ultimately belong to a Store; authorization always resolves
+// user → membership(store) → role → permissions, never trusting client
+// store context alone.
+
+model SellerUser {
+  id String @id @default(cuid())
+
+  email           String    @unique @db.VarChar(255)
+  emailNormalized String    @unique @db.VarChar(255)
+  name            String?   @db.VarChar(255)
+  passwordHash    String    @db.VarChar(255)
+  lastLoginAt     DateTime?
+
+  status          SellerStatus @default(ACTIVE)
+  emailVerifiedAt DateTime?
+
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+
+  // Bump to revoke all JWTs + sessions (global logout / compromise).
+  tokenVersion Int @default(0)
+
+  sessions     SellerSession[]
+  memberships  StoreMembership[]
+  ownedStores  Store[]           @relation("StoreOwner")
+  sentInvites  StoreInvitation[] @relation("InvitationInviter")
+  auditEvents  StoreAuditLog[]   @relation("StoreAuditActor")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@map("seller_users")
+}
+
+model SellerSession {
+  id String @id @default(cuid())
+
+  sellerId String
+  seller   SellerUser @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  refreshTokenHash  String    @unique @db.VarChar(128)
+  previousTokenHash String?   @db.VarChar(128)
+  familyId          String    @db.VarChar(64)
+  ipAddress         String?   @db.VarChar(64)
+  userAgent         String?   @db.VarChar(512)
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  revokeReason      String?   @db.VarChar(128)
+  lastUsedAt        DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+
+  @@index([sellerId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("seller_sessions")
+}
+
+model Store {
+  id String @id @default(cuid())
+
+  name        String  @db.VarChar(128)
+  slug        String  @unique @db.VarChar(128)
+  logo        String? @db.VarChar(512)
+  description String? @db.VarChar(1000)
+  category    String? @db.VarChar(128)
+
+  status StoreStatus @default(PENDING_SETUP)
+
+  ownerId String
+  owner   SellerUser @relation("StoreOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+
+  country   String? @db.VarChar(64)
+  currency  String  @default("INR") @db.VarChar(8)
+  timezone  String  @default("Asia/Kolkata") @db.VarChar(64)
+  contactEmail String? @db.VarChar(255)
+  contactPhone String? @db.VarChar(32)
+
+  onboardingCompletedAt DateTime?
+
+  deletedAt DateTime?
+
+  memberships   StoreMembership[]
+  roles         StoreRole[]
+  invitations   StoreInvitation[]
+  auditLogs     StoreAuditLog[]
+  subscriptions StoreSubscription[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+  @@index([status])
+  @@map("stores")
+}
+
+model StoreMembership {
+  id String @id @default(cuid())
+
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   SellerUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  roleId String
+  role   StoreRole @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  status   MembershipStatus @default(ACTIVE)
+  joinedAt DateTime         @default(now())
+
+  invitedBy String? @db.VarChar(64)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, userId])
+  @@index([userId])
+  @@index([storeId, status])
+  @@map("store_memberships")
+}
+
+model StoreRole {
+  id String @id @default(cuid())
+
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  key         String  @db.VarChar(64)
+  name        String  @db.VarChar(128)
+  description String? @db.VarChar(500)
+  isSystem    Boolean @default(false)
+  status      RoleStatus @default(ACTIVE)
+
+  permissions StoreRolePermission[]
+  memberships StoreMembership[]
+  invitations StoreInvitation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, key])
+  @@index([storeId, status])
+  @@map("store_roles")
+}
+
+model StorePermission {
+  id String @id @default(cuid())
+
+  // Store domain uses resource:action (e.g. product:create) — deliberately
+  // distinct from the platform domain's module.action so the two RBAC
+  // systems can never be confused.
+  key         String  @unique @db.VarChar(128)
+  resource    String  @db.VarChar(64)
+  action      String  @db.VarChar(64)
+  label       String? @db.VarChar(128)
+  description String? @db.VarChar(500)
+  isSystem    Boolean @default(true)
+
+  roles StoreRolePermission[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([resource])
+  @@map("store_permissions")
+}
+
+model StoreRolePermission {
+  roleId       String
+  role         StoreRole       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permissionId String
+  permission   StorePermission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  assignedAt DateTime @default(now())
+
+  @@id([roleId, permissionId])
+  @@map("store_role_permissions")
+}
+
+model StoreInvitation {
+  id String @id @default(cuid())
+
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  email           String @db.VarChar(255)
+  emailNormalized String @db.VarChar(255)
+
+  roleId String
+  role   StoreRole @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  tokenHash String    @unique @db.VarChar(128)
+  status    InvitationStatus @default(PENDING)
+  expiresAt DateTime
+
+  invitedById String?
+  invitedBy   SellerUser? @relation("InvitationInviter", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  acceptedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([storeId, status])
+  @@index([emailNormalized])
+  @@index([expiresAt])
+  @@map("store_invitations")
+}
+
+model StoreAuditLog {
+  id String @id @default(cuid())
+
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  actorId String?
+  actor   SellerUser? @relation("StoreAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorEmail String? @db.VarChar(320)
+
+  action       String  @db.VarChar(128)
+  resourceType String  @db.VarChar(64)
+  resourceId   String? @db.VarChar(64)
+  metadata     Json?
+  ipAddress    String? @db.VarChar(64)
+  userAgent    String?
+  requestId    String? @db.VarChar(64)
+  createdAt    DateTime @default(now())
+
+  @@index([storeId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@map("store_audit_log")
+}
+
+model SubscriptionPlan {
+  id String @id @default(cuid())
+
+  key         String  @unique @db.VarChar(64)
+  name        String  @db.VarChar(128)
+  description String? @db.VarChar(500)
+
+  pricePaise   Int @default(0)
+  currency     String @default("INR") @db.VarChar(8)
+  billingCycle BillingCycle @default(MONTHLY)
+
+  // Entitlement limits, e.g. { "products.max": 100, "staff.max": 5 }.
+  // Enforced by an entitlement service — never hardcoded plan branches.
+  limits Json?
+
+  trialDays Int @default(0)
+  isActive  Boolean @default(true)
+
+  subscriptions StoreSubscription[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("subscription_plans")
+}
+
+model StoreSubscription {
+  id String @id @default(cuid())
+
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  planId String
+  plan   SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  status SubscriptionStatus @default(TRIALING)
+  billingCycle BillingCycle @default(MONTHLY)
+
+  provider                 String?   @db.VarChar(64)
+  providerCustomerId       String?   @db.VarChar(128)
+  providerSubscriptionId   String?   @db.VarChar(128)
+  currentPeriodStart       DateTime?
+  currentPeriodEnd         DateTime?
+  trialStart               DateTime?
+  trialEnd                 DateTime?
+  cancelAt                 DateTime?
+  cancelledAt              DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId, status])
+  @@index([status, currentPeriodEnd])
+  @@map("store_subscriptions")
+}
+
+enum SellerStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  DISABLED
+}
+
+enum StoreStatus {
+  PENDING_SETUP
+  ACTIVE
+  SUSPENDED
+  PAYMENT_REQUIRED
+  PAUSED
+  CLOSED
+  DELETED
+}
+
+enum MembershipStatus {
+  ACTIVE
+  SUSPENDED
+  REMOVED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  REVOKED
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  PAUSED
+  CANCELLED
+  EXPIRED
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}

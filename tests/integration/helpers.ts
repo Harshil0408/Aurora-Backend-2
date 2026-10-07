@@ -18,6 +18,17 @@ const TABLES = [
   'admin_users',
   'admin_roles',
   'permissions',
+  'store_audit_log',
+  'store_invitations',
+  'store_role_permissions',
+  'store_memberships',
+  'store_roles',
+  'store_permissions',
+  'store_subscriptions',
+  'subscription_plans',
+  'seller_sessions',
+  'stores',
+  'seller_users',
 ];
 
 export function getTestDatabaseUrl(): string {
