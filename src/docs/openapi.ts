@@ -1275,6 +1275,29 @@ export const openApiSpec = {
         responses: { '200': { description: 'Membership created' } },
       },
     },
+    '/seller/team/invitations/pending': {
+      get: {
+        tags: ['seller'],
+        summary: 'My pending invitations (matched by logged-in email, no store needed)',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Pending invitation inbox' } },
+      },
+    },
+    '/seller/team/invitations/{invitationId}/decline': {
+      post: {
+        tags: ['seller'],
+        summary: 'Decline a store invitation (invited email only)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'invitationId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': { description: 'Declined' },
+          '400': { description: 'Already handled or expired' },
+          '403': { description: 'Invitation belongs to a different email' },
+        },
+      },
+    },
     '/seller/team/{storeId}/roles': {
       get: {
         tags: ['seller'],

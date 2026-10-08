@@ -224,4 +224,63 @@ describe('seller foundation flow', () => {
     expect(refreshed.status).toBe(200);
     expect(refreshed.body.data.accessToken).toBeTruthy();
   });
+
+  it('invitation inbox: pending list → decline → accept-after-decline fails', async () => {
+    const owner = await registerSeller(app, 'owner@shop.test');
+    const invited = await registerSeller(app, 'invited@shop.test');
+    const stranger = await registerSeller(app, 'stranger@shop.test');
+    const created = await request(app)
+      .post('/api/v1/seller/stores')
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({ name: 'Aurora Fashion' });
+    const storeId = created.body.data.id as string;
+
+    const invite = await request(app)
+      .post(`/api/v1/seller/team/${storeId}/invitations`)
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .send({ email: 'invited@shop.test', roleKey: 'staff' });
+    expect(invite.status).toBe(201);
+    const invitationId = invite.body.data.invitationId as string;
+
+    // Invitee sees it without any token link; others see nothing.
+    const inbox = await request(app)
+      .get('/api/v1/seller/team/invitations/pending')
+      .set('Authorization', `Bearer ${invited.accessToken}`);
+    expect(inbox.status).toBe(200);
+    expect(inbox.body.data).toHaveLength(1);
+    expect(inbox.body.data[0]).toMatchObject({
+      id: invitationId,
+      storeId,
+      storeName: 'Aurora Fashion',
+      roleKey: 'staff',
+    });
+
+    const strangerInbox = await request(app)
+      .get('/api/v1/seller/team/invitations/pending')
+      .set('Authorization', `Bearer ${stranger.accessToken}`);
+    expect(strangerInbox.body.data).toEqual([]);
+
+    // Wrong email cannot decline.
+    const wrongDecline = await request(app)
+      .post(`/api/v1/seller/team/invitations/${invitationId}/decline`)
+      .set('Authorization', `Bearer ${stranger.accessToken}`);
+    expect(wrongDecline.status).toBe(403);
+
+    // Invitee declines → inbox empties → token accept now fails.
+    const decline = await request(app)
+      .post(`/api/v1/seller/team/invitations/${invitationId}/decline`)
+      .set('Authorization', `Bearer ${invited.accessToken}`);
+    expect(decline.status).toBe(200);
+
+    const inboxAfter = await request(app)
+      .get('/api/v1/seller/team/invitations/pending')
+      .set('Authorization', `Bearer ${invited.accessToken}`);
+    expect(inboxAfter.body.data).toEqual([]);
+
+    const acceptAfterDecline = await request(app)
+      .post('/api/v1/seller/team/invitations/accept')
+      .set('Authorization', `Bearer ${invited.accessToken}`)
+      .send({ token: invite.body.data.token as string });
+    expect(acceptAfterDecline.status).toBe(400);
+  });
 });

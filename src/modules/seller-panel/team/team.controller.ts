@@ -13,9 +13,11 @@ import {
 } from './roles.service.js';
 import {
   acceptInvitation,
+  declineInvitation,
   inviteMember,
   listInvitations,
   listMembers,
+  listPendingInvitationsForUser,
   removeMember,
   revokeInvitation,
   updateMemberRole,
@@ -289,6 +291,37 @@ export const acceptInvitationHandler = [
       res.json({
         success: true,
         data: await acceptInvitation(auth.sellerId, token, getRequestMeta(req)),
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+];
+
+export const listPendingInvitationsHandler = [
+  requireSellerAuth,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const auth = getSellerAuth(req);
+      res.json({
+        success: true,
+        data: await listPendingInvitationsForUser(auth.sellerId),
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+];
+
+export const declineInvitationHandler = [
+  requireSellerAuth,
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const auth = getSellerAuth(req);
+      const invitationId = z.string().min(1).parse(req.params['invitationId']);
+      res.json({
+        success: true,
+        data: await declineInvitation(auth.sellerId, invitationId, getRequestMeta(req)),
       });
     } catch (err) {
       next(err);

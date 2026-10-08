@@ -2,10 +2,12 @@ import { Router } from 'express';
 import {
   acceptInvitationHandler,
   createRoleHandler,
+  declineInvitationHandler,
   deleteRoleHandler,
   inviteMemberHandler,
   listInvitationsHandler,
   listMembersHandler,
+  listPendingInvitationsHandler,
   listPermissionsHandler,
   listRolesHandler,
   removeMemberHandler,
@@ -17,8 +19,12 @@ import {
 
 export const teamAreaRouter: Router = Router();
 
+// User-scoped invitation inbox (no :storeId — the invitee may have no
+// membership yet). Registered before the store-scoped routes.
 // Invitation acceptance is user-scoped (no :storeId yet — the token carries it).
 teamAreaRouter.post('/invitations/accept', ...acceptInvitationHandler);
+teamAreaRouter.get('/invitations/pending', ...listPendingInvitationsHandler);
+teamAreaRouter.post('/invitations/:invitationId/decline', ...declineInvitationHandler);
 
 // Everything below is store-scoped (`:storeId` authorized by requireStoreAccess).
 teamAreaRouter.get('/:storeId/roles', ...listRolesHandler);

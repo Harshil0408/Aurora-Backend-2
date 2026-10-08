@@ -145,6 +145,80 @@ export async function revokeInvitation(
   return { revoked: true };
 }
 
+/**
+ * User-scoped: pending, unexpired invitations addressed to the logged-in
+ * seller's email. Powers the "You've been invited…" UI for invitees who
+ * arrive without the raw token link (fresh login, no sessionStorage).
+ */
+export async function listPendingInvitationsForUser(sellerId: string) {
+  const prisma = getPrisma();
+  const seller = await prisma.sellerUser.findUnique({ where: { id: sellerId } });
+  if (!seller) return [];
+  const rows = await prisma.storeInvitation.findMany({
+    where: {
+      emailNormalized: normalizeEmail(seller.email),
+      status: 'PENDING',
+      expiresAt: { gt: new Date() },
+    },
+    include: {
+      store: { select: { id: true, name: true, slug: true } },
+      role: { select: { key: true, name: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    storeId: r.store.id,
+    storeName: r.store.name,
+    slug: r.store.slug,
+    roleKey: r.role.key,
+    roleName: r.role.name,
+    expiresAt: r.expiresAt,
+    createdAt: r.createdAt,
+  }));
+}
+
+/** Decline by invitation id. Only the invited email address may decline. */
+export async function declineInvitation(sellerId: string, invitationId: string, meta: RequestMeta) {
+  const prisma = getPrisma();
+  const invitation = await prisma.storeInvitation.findUnique({
+    where: { id: invitationId },
+    include: { role: true },
+  });
+  if (!invitation) throw notFound('Invitation not found');
+
+  const seller = await prisma.sellerUser.findUnique({ where: { id: sellerId } });
+  if (!seller || normalizeEmail(seller.email) !== invitation.emailNormalized) {
+    throw forbidden('This invitation was sent to a different email address');
+  }
+  if (invitation.status !== 'PENDING') throw badRequest('Invitation is no longer pending');
+  if (invitation.expiresAt.getTime() <= Date.now()) {
+    await prisma.storeInvitation.update({
+      where: { id: invitation.id },
+      data: { status: 'EXPIRED' },
+    });
+    throw badRequest('Invitation has expired');
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.storeInvitation.update({
+      where: { id: invitation.id },
+      data: { status: 'DECLINED' },
+    });
+    await recordStoreAudit(tx, {
+      storeId: invitation.storeId,
+      actorId: sellerId,
+      actorEmail: seller.email,
+      action: 'staff.invite_declined',
+      resourceType: 'invitation',
+      resourceId: invitation.id,
+      metadata: { roleKey: invitation.role.key },
+      meta,
+    });
+  });
+  return { declined: true };
+}
+
 /** Accept by raw token. Requires auth; the logged-in email must match. */
 export async function acceptInvitation(sellerId: string, token: string, meta: RequestMeta) {
   const prisma = getPrisma();
