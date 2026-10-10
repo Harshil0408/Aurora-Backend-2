@@ -95,6 +95,15 @@ async function resolveSnapshots(
     } else if (input.resourceType === 'permission') {
       // Permission rows carry the module.action key as resourceId.
       resourceLabel = input.resourceId;
+    } else if (input.resourceType === 'attribute') {
+      // Attributes are looked up by id; show type/key for readability.
+      const attribute = await db.attribute.findUnique({
+        where: { id: input.resourceId },
+        select: { type: true, key: true, label: true },
+      });
+      resourceLabel = attribute
+        ? `${attribute.type}/${attribute.key} (${attribute.label})`
+        : input.resourceId;
     } else {
       resourceLabel = input.resourceId;
     }

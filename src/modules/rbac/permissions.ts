@@ -41,6 +41,10 @@ export const PERMISSIONS = {
   AUDIT_READ: 'audit.read',
   SESSION_READ: 'session.read',
   SESSION_REVOKE: 'session.revoke',
+  ATTRIBUTE_READ: 'attribute.read',
+  ATTRIBUTE_CREATE: 'attribute.create',
+  ATTRIBUTE_UPDATE: 'attribute.update',
+  ATTRIBUTE_DELETE: 'attribute.delete',
   // NOTE: users/products/orders keys live here ONLY once those modules
   // ship. Do not pre-seed future modules — the catalog mirrors reality.
 } as const;
@@ -62,8 +66,15 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, readonly PermissionKey[]> 
     PERMISSIONS.AUDIT_READ,
     PERMISSIONS.SESSION_READ,
     PERMISSIONS.SESSION_REVOKE,
+    PERMISSIONS.ATTRIBUTE_READ,
+    PERMISSIONS.ATTRIBUTE_CREATE,
+    PERMISSIONS.ATTRIBUTE_UPDATE,
   ],
-  [SUPPORT_ROLE_KEY]: [PERMISSIONS.ADMIN_READ, PERMISSIONS.SESSION_READ],
+  [SUPPORT_ROLE_KEY]: [
+    PERMISSIONS.ADMIN_READ,
+    PERMISSIONS.SESSION_READ,
+    PERMISSIONS.ATTRIBUTE_READ,
+  ],
 };
 
 export interface RoleSeed {
@@ -126,6 +137,10 @@ export const PERMISSION_SEEDS: readonly PermissionSeed[] = [
   seed('audit.read', 'View activity log', 'Read the admin audit trail'),
   seed('session.read', 'View sessions', 'List admin sessions'),
   seed('session.revoke', 'Revoke sessions', 'Revoke any admin session'),
+  seed('attribute.read', 'View attributes', 'List global lookup attributes by type'),
+  seed('attribute.create', 'Create attributes', 'Add global lookup attributes'),
+  seed('attribute.update', 'Edit attributes', 'Edit global lookup attributes'),
+  seed('attribute.delete', 'Delete attributes', 'Delete custom global attributes'),
 ];
 
 export function hasPermission(granted: ReadonlySet<string>, required: string): boolean {
@@ -235,6 +250,32 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
         key: PERMISSIONS.SESSION_REVOKE,
         label: 'Revoke sessions',
         description: 'Revoke any admin session',
+      },
+    ],
+  },
+  {
+    group: 'attributes',
+    label: 'Attributes',
+    permissions: [
+      {
+        key: PERMISSIONS.ATTRIBUTE_READ,
+        label: 'View attributes',
+        description: 'List global lookup attributes by type',
+      },
+      {
+        key: PERMISSIONS.ATTRIBUTE_CREATE,
+        label: 'Create attributes',
+        description: 'Add global lookup attributes',
+      },
+      {
+        key: PERMISSIONS.ATTRIBUTE_UPDATE,
+        label: 'Edit attributes',
+        description: 'Edit global lookup attributes',
+      },
+      {
+        key: PERMISSIONS.ATTRIBUTE_DELETE,
+        label: 'Delete attributes',
+        description: 'Delete custom global attributes',
       },
     ],
   },

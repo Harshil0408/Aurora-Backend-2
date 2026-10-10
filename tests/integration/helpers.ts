@@ -18,6 +18,7 @@ const TABLES = [
   'admin_users',
   'admin_roles',
   'permissions',
+  'attributes',
   'store_audit_log',
   'store_invitations',
   'store_role_permissions',

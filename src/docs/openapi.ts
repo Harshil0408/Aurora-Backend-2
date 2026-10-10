@@ -1130,6 +1130,114 @@ export const openApiSpec = {
         },
       },
     },
+    '/admin/attributes': {
+      get: {
+        tags: ['attributes'],
+        summary: 'List attributes, ?type= narrows to one lookup (perm: attribute.read)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 20 } },
+          {
+            name: 'type',
+            in: 'query',
+            schema: { type: 'string', example: 'category' },
+            description: 'Attribute namespace, e.g. category, payment_type, country',
+          },
+          {
+            name: 'status',
+            in: 'query',
+            schema: { type: 'string', enum: ['ACTIVE', 'INACTIVE'] },
+          },
+          { name: 'search', in: 'query', schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'Paginated attributes' } },
+      },
+      post: {
+        tags: ['attributes'],
+        summary: 'Create attribute — key unique per type (perm: attribute.create)',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['type', 'key', 'label'],
+                properties: {
+                  type: { type: 'string', example: 'payment_type' },
+                  key: { type: 'string', example: 'upi' },
+                  label: { type: 'string', example: 'UPI' },
+                  value: { type: 'string', example: 'UPI' },
+                  description: { type: 'string' },
+                  sortOrder: { type: 'integer', example: 0 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': { description: 'Created' },
+          '409': { description: 'Key already in use for this type' },
+        },
+      },
+    },
+    '/admin/attributes/types': {
+      get: {
+        tags: ['attributes'],
+        summary: 'Distinct types with counts — backs one screen per type (perm: attribute.read)',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Type list' } },
+      },
+    },
+    '/admin/attributes/{id}': {
+      get: {
+        tags: ['attributes'],
+        summary: 'Attribute detail (perm: attribute.read)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Attribute' }, '404': { description: 'Not found' } },
+      },
+      patch: {
+        tags: ['attributes'],
+        summary:
+          'Edit label/value/description/metadata/sortOrder — type+key immutable (perm: attribute.update)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Updated' } },
+      },
+      delete: {
+        tags: ['attributes'],
+        summary: 'Delete a custom attribute — system rows protected (perm: attribute.delete)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Deleted' } },
+      },
+    },
+    '/admin/attributes/{id}/status': {
+      patch: {
+        tags: ['attributes'],
+        summary: 'Activate/deactivate with reason (perm: attribute.update)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['status', 'reason'],
+                properties: {
+                  status: { type: 'string', enum: ['ACTIVE', 'INACTIVE'] },
+                  reason: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        responses: { '200': { description: 'Updated' } },
+      },
+    },
     '/seller/auth/register': {
       post: {
         tags: ['seller'],

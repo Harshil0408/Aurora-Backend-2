@@ -291,6 +291,39 @@ enum LoginOutcome {
   FAILURE
 }
 
+// ─── Global attributes (platform-level lookup catalog) ──────────────────────
+// One table backs every panel-agnostic dropdown/lookup: categories,
+// payment types, countries, languages, currencies, … Rows are namespaced by
+// `type`; frontends render one screen per type but consume the same CRUD
+// APIs. Never scoped to a store — platform admins own this catalog.
+model Attribute {
+  id String @id @default(cuid())
+
+  type  String @db.VarChar(64) // e.g. category, payment_type, country, language
+  key   String @db.VarChar(128) // slug, unique per type, e.g. "fashion", "upi"
+  label String @db.VarChar(255) // display name
+  value String? @db.VarChar(255) // optional code/payload, e.g. "INR", "+91"
+
+  description String? @db.VarChar(500)
+  metadata    Json?
+  sortOrder   Int     @default(0)
+
+  status   AttributeStatus @default(ACTIVE)
+  isSystem Boolean         @default(false) // system rows cannot be deleted
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([type, key])
+  @@index([type, status, sortOrder])
+  @@map("attributes")
+}
+
+enum AttributeStatus {
+  ACTIVE
+  INACTIVE
+}
+
 // ─── Seller panel (tenant/store-scoped domain) ──────────────────────────────
 // Identity is intentionally separate from AdminUser: platform admins govern
 // the marketplace, seller users own/belong to stores. One user ⇄ N stores

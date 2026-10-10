@@ -27,7 +27,7 @@ describe('postman export', () => {
 
   it('groups requests into auth/admin/seller folders with bearer inheritance', () => {
     const collection = toPostmanCollection(openApiSpec);
-    expect(collection.item.map((f) => f.name).sort()).toEqual(['admin', 'auth', 'seller']);
+    expect(collection.item.map((f) => f.name).sort()).toEqual(['admin', 'attributes', 'auth', 'seller']);
     expect(collection.auth).toMatchObject({ type: 'bearer' });
     expect(collection.variable.map((v) => v.key).sort()).toEqual([
       'accessToken',
