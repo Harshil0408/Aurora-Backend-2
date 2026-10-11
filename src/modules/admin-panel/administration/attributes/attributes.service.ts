@@ -45,14 +45,15 @@ export async function listAttributes(query: ListAttributesQuery) {
 }
 
 /** Distinct types with row counts — backs the per-type frontend screens. */
-export async function listAttributeTypes() {
+export async function listAttributeTypes(status?: 'ACTIVE' | 'INACTIVE') {
   const prisma = getPrisma();
   const groups = await prisma.attribute.groupBy({
     by: ['type'],
+    ...(status ? { where: { status } } : {}),
     _count: { _all: true },
     orderBy: { type: 'asc' },
   });
-  return groups.map((g) => ({ type: g.type, count: g._count._all }));
+  return groups.map((g) => ({ type: g.type, count: g._count?._all ?? 0 }));
 }
 
 export async function getAttribute(id: string) {

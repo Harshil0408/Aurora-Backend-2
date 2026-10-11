@@ -10,6 +10,7 @@ import { requestLogger } from './shared/middleware/requestLogger.js';
 import { healthRouter } from './modules/health/health.routes.js';
 import { adminPanelRouter } from './modules/admin-panel/admin-panel.routes.js';
 import { sellerPanelRouter } from './modules/seller-panel/seller-panel.routes.js';
+import { publicPanelRouter } from './modules/public-panel/public-panel.routes.js';
 import { docsRouter } from './docs/docs.routes.js';
 
 export function createApp(): Express {
@@ -58,6 +59,7 @@ export function createApp(): Express {
   // (/auth/login, /auth/me, …) can never collide across panels.
   app.use(`${env.API_PREFIX}/admin`, adminPanelRouter);
   app.use(`${env.API_PREFIX}/seller`, sellerPanelRouter);
+  app.use(`${env.API_PREFIX}/public`, publicPanelRouter);
   app.use('/api/docs', docsRouter);
 
   app.use(notFound);

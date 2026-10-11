@@ -18,6 +18,7 @@ export const openApiSpec = {
       name: 'seller',
       description: 'Seller panel: auth, stores, team, billing (refresh cookie: seller_rt)',
     },
+    { name: 'public', description: 'Public read-only catalog (no auth, ACTIVE rows only)' },
   ],
   components: {
     securitySchemes: {
@@ -1236,6 +1237,39 @@ export const openApiSpec = {
           },
         },
         responses: { '200': { description: 'Updated' } },
+      },
+    },
+    '/public/attributes': {
+      get: {
+        tags: ['public'],
+        summary: 'Public attribute catalog — ACTIVE rows only, no auth',
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 20 } },
+          {
+            name: 'type',
+            in: 'query',
+            schema: { type: 'string', example: 'category' },
+            description: 'Attribute namespace, e.g. category, payment_type, country',
+          },
+          { name: 'search', in: 'query', schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'Paginated active attributes' } },
+      },
+    },
+    '/public/attributes/types': {
+      get: {
+        tags: ['public'],
+        summary: 'Public attribute types with active counts — no auth',
+        responses: { '200': { description: 'Type list' } },
+      },
+    },
+    '/public/attributes/{id}': {
+      get: {
+        tags: ['public'],
+        summary: 'Public attribute detail — ACTIVE rows only, no auth',
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Attribute' }, '404': { description: 'Not found' } },
       },
     },
     '/seller/auth/register': {
