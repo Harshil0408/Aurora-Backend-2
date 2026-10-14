@@ -8,3 +8,5 @@ src/generated/
 .DS_Store
 postman
 Thumbs.db
+uploads/
+!uploads/.gitkeep

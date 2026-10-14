@@ -415,6 +415,7 @@ model Store {
   invitations   StoreInvitation[]
   auditLogs     StoreAuditLog[]
   subscriptions StoreSubscription[]
+  mediaAssets   StoreMediaAsset[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -660,4 +661,70 @@ enum SubscriptionStatus {
 enum BillingCycle {
   MONTHLY
   YEARLY
+}
+
+// ─── Catalog: store-scoped media library (Phase 1, Module 1) ───────────────
+// Every asset belongs to a Store; all queries MUST scope by storeId.
+// Money/file sizes are integers (bytes). Public assets are served via CDN or
+// local static route; private documents get expiring signed URLs (S3 later,
+// capability token now). Variants (thumb/card/detail/zoom) are derived
+// async; MVP stores the original and reports variant URLs.
+model StoreMediaAsset {
+  id String @id @default(cuid())
+
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  fileName     String @db.VarChar(255)
+  originalName String @db.VarChar(255)
+  mime         String @db.VarChar(128)
+  sizeBytes    Int
+  checksum     String @db.VarChar(128)
+
+  kind       MediaKind       @default(IMAGE)
+  visibility MediaVisibility @default(PUBLIC)
+  status     MediaStatus     @default(READY)
+
+  storageKey String  @db.VarChar(512)
+  url        String? @db.VarChar(1024)
+
+  width  Int?
+  height Int?
+
+  altText String? @db.VarChar(255)
+  caption String? @db.VarChar(500)
+  folder  String   @default("general") @db.VarChar(128)
+  tags    String[] @default([])
+
+  uploadedBy String? @db.VarChar(64)
+  usageCount Int     @default(0)
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, checksum])
+  @@index([storeId, createdAt])
+  @@index([storeId, kind])
+  @@index([storeId, folder])
+  @@map("store_media_assets")
+}
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+  DOCUMENT
+  OTHER
+}
+
+enum MediaVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum MediaStatus {
+  PENDING
+  READY
+  FAILED
 }

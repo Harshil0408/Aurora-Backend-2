@@ -4,6 +4,7 @@ import { storesAreaRouter } from './stores/stores.routes.js';
 import { teamAreaRouter } from './team/team.routes.js';
 import { billingAreaRouter } from './billing/billing.routes.js';
 import { activityAreaRouter } from './activity/activity.routes.js';
+import { catalogAreaRouter } from './catalog/catalog.routes.js';
 
 /**
  * Seller panel — owns the entire `/api/v1/seller/*` namespace.
@@ -20,3 +21,4 @@ sellerPanelRouter.use('/stores', storesAreaRouter);
 sellerPanelRouter.use('/team', teamAreaRouter);
 sellerPanelRouter.use('/billing', billingAreaRouter);
 sellerPanelRouter.use('/activity', activityAreaRouter);
+sellerPanelRouter.use('/catalog', catalogAreaRouter);

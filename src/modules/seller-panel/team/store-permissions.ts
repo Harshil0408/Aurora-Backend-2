@@ -51,6 +51,9 @@ export const STORE_PERMISSIONS = {
   SETTINGS_UPDATE: 'settings:update',
   BILLING_READ: 'billing:read',
   BILLING_UPDATE: 'billing:update',
+  MEDIA_VIEW: 'media:view',
+  MEDIA_UPLOAD: 'media:upload',
+  MEDIA_DELETE: 'media:delete',
 } as const;
 
 export type StorePermissionKey = (typeof STORE_PERMISSIONS)[keyof typeof STORE_PERMISSIONS];
@@ -104,6 +107,9 @@ export const STORE_PERMISSION_SEEDS: readonly StorePermissionSeed[] = [
   seed('settings:update', 'Edit settings', 'Edit store settings'),
   seed('billing:read', 'View billing', 'View plans and subscription'),
   seed('billing:update', 'Manage billing', 'Change plan / billing (owner-biased)'),
+  seed('media:view', 'View media', 'Browse the store media library'),
+  seed('media:upload', 'Upload media', 'Upload and edit media assets'),
+  seed('media:delete', 'Delete media', 'Delete media assets (blocked when in use)'),
 ];
 
 /**
@@ -124,6 +130,7 @@ export const DEFAULT_STORE_ROLE_PERMISSIONS: Record<string, readonly StorePermis
     STORE_PERMISSIONS.CUSTOMER_READ,
     STORE_PERMISSIONS.ANALYTICS_READ,
     STORE_PERMISSIONS.SETTINGS_READ,
+    STORE_PERMISSIONS.MEDIA_VIEW,
   ],
 };
 

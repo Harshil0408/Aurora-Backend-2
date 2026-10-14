@@ -59,6 +59,9 @@ const envSchema = z.object({
   RATE_LIMIT_MAX: z.coerce.number().int().positive().default(100),
   LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(20),
 
+  // Catalog media storage (local-disk driver; S3 layout-compatible).
+  STORAGE_DIR: z.string().min(1).default('uploads'),
+
   TEST_DATABASE_URL: z.string().min(1).optional(),
 
   RENDER_EXTERNAL_URL: z.string().min(1).optional(),

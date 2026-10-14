@@ -1496,6 +1496,100 @@ export const openApiSpec = {
         responses: { '201': { description: 'Invited (token returned once)' } },
       },
     },
+    '/seller/catalog/{storeId}/media': {
+      get: {
+        tags: ['seller'],
+        summary: 'Media library: search, filter, paginate (needs media:view)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'storeId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'search', in: 'query', schema: { type: 'string' } },
+          { name: 'kind', in: 'query', schema: { type: 'string', enum: ['IMAGE', 'VIDEO', 'DOCUMENT', 'OTHER'] } },
+          { name: 'folder', in: 'query', schema: { type: 'string' } },
+          { name: 'orphanOnly', in: 'query', schema: { type: 'boolean' } },
+        ],
+        responses: { '200': { description: 'Media page' } },
+      },
+      post: {
+        tags: ['seller'],
+        summary: 'Upload up to 5 files (needs media:upload)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'storeId', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'multipart/form-data': {
+              schema: {
+                type: 'object',
+                properties: {
+                  files: { type: 'array', items: { type: 'string', format: 'binary' } },
+                  folder: { type: 'string', example: 'products' },
+                  altText: { type: 'string' },
+                  tags: { type: 'string', example: 'festive,kurta' },
+                  visibility: { type: 'string', enum: ['PUBLIC', 'PRIVATE'] },
+                },
+              },
+            },
+          },
+        },
+        responses: { '201': { description: 'Assets ready (deduped flag on checksum match)' } },
+      },
+    },
+    '/seller/catalog/{storeId}/media/quota': {
+      get: {
+        tags: ['seller'],
+        summary: 'Storage quota usage vs plan limit (needs media:view)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'storeId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Quota status' } },
+      },
+    },
+    '/seller/catalog/{storeId}/media/orphans/cleanup': {
+      post: {
+        tags: ['seller'],
+        summary: 'Delete unreferenced assets older than N days (needs media:delete)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'storeId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'olderThanDays', in: 'query', schema: { type: 'integer', default: 30 } },
+        ],
+        responses: { '200': { description: 'Cleanup counts' } },
+      },
+    },
+    '/seller/catalog/{storeId}/media/{id}': {
+      patch: {
+        tags: ['seller'],
+        summary: 'Rename / tag / caption / move an asset (needs media:upload)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'storeId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'Asset updated' } },
+      },
+      delete: {
+        tags: ['seller'],
+        summary: 'Delete an asset — blocked while in use (needs media:delete)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'storeId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'Deleted' } },
+      },
+    },
+    '/seller/catalog/{storeId}/media/{id}/file': {
+      get: {
+        tags: ['seller'],
+        summary: 'Download/stream an asset, incl. private documents (needs media:view)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'storeId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'File bytes' } },
+      },
+    },
     '/seller/billing/plans': {
       get: {
         tags: ['seller'],

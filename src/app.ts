@@ -3,6 +3,7 @@ import cors from 'cors';
 import express, { type Express } from 'express';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
+import path from 'node:path';
 import { getAllowedOrigins, getEnv } from './config/env.js';
 import { errorHandler, notFound } from './shared/middleware/errorHandler.js';
 import { requestId } from './shared/middleware/requestId.js';
@@ -53,6 +54,10 @@ export function createApp(): Express {
       message: { success: false, error: { code: 'RATE_LIMITED', message: 'Too many requests' } },
     }),
   );
+
+  // Public media assets only (`uploads/public`). Private documents are
+  // NEVER under this mount — they stream through the authed download route.
+  app.use('/uploads', express.static(path.resolve(process.cwd(), env.STORAGE_DIR, 'public')));
 
   app.use(`${env.API_PREFIX}/health`, healthRouter);
   // One mount per panel — each panel owns its namespace, so leaf routes

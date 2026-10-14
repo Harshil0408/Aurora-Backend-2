@@ -28,6 +28,7 @@ const TABLES = [
   'store_subscriptions',
   'subscription_plans',
   'seller_sessions',
+  'store_media_assets',
   'stores',
   'seller_users',
 ];

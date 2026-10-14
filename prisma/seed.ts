@@ -30,7 +30,7 @@ const SUBSCRIPTION_PLAN_SEEDS = [
     description: 'Explore the platform with core limits.',
     pricePaise: 0,
     billingCycle: 'MONTHLY',
-    limits: { 'products.max': 20, 'staff.max': 2, 'orders.monthly': 100 },
+    limits: { 'products.max': 20, 'staff.max': 2, 'orders.monthly': 100, 'storage.mb': 100 },
     trialDays: 0,
   },
   {
@@ -39,7 +39,7 @@ const SUBSCRIPTION_PLAN_SEEDS = [
     description: 'For new stores finding traction.',
     pricePaise: 49900,
     billingCycle: 'MONTHLY',
-    limits: { 'products.max': 100, 'staff.max': 5, 'orders.monthly': 1000 },
+    limits: { 'products.max': 100, 'staff.max': 5, 'orders.monthly': 1000, 'storage.mb': 1024 },
     trialDays: 14,
   },
   {
@@ -48,7 +48,7 @@ const SUBSCRIPTION_PLAN_SEEDS = [
     description: 'For growing catalogs and teams.',
     pricePaise: 149900,
     billingCycle: 'MONTHLY',
-    limits: { 'products.max': 1000, 'staff.max': 15, 'orders.monthly': 10000 },
+    limits: { 'products.max': 1000, 'staff.max': 15, 'orders.monthly': 10000, 'storage.mb': 10240 },
     trialDays: 14,
   },
   {
@@ -57,7 +57,7 @@ const SUBSCRIPTION_PLAN_SEEDS = [
     description: 'For high-volume sellers.',
     pricePaise: 399900,
     billingCycle: 'MONTHLY',
-    limits: { 'products.max': 10000, 'staff.max': 50, 'orders.monthly': 100000 },
+    limits: { 'products.max': 10000, 'staff.max': 50, 'orders.monthly': 100000, 'storage.mb': 102400 },
     trialDays: 14,
   },
 ] as const;
