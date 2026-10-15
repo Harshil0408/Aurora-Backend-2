@@ -45,6 +45,8 @@ export const PERMISSIONS = {
   ATTRIBUTE_CREATE: 'attribute.create',
   ATTRIBUTE_UPDATE: 'attribute.update',
   ATTRIBUTE_DELETE: 'attribute.delete',
+  CATEGORY_MANAGE: 'category.manage',
+  MEDIA_MANAGE: 'media.manage',
   // NOTE: users/products/orders keys live here ONLY once those modules
   // ship. Do not pre-seed future modules — the catalog mirrors reality.
 } as const;
@@ -69,6 +71,8 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, readonly PermissionKey[]> 
     PERMISSIONS.ATTRIBUTE_READ,
     PERMISSIONS.ATTRIBUTE_CREATE,
     PERMISSIONS.ATTRIBUTE_UPDATE,
+    PERMISSIONS.CATEGORY_MANAGE,
+    PERMISSIONS.MEDIA_MANAGE,
   ],
   [SUPPORT_ROLE_KEY]: [
     PERMISSIONS.ADMIN_READ,
@@ -141,6 +145,8 @@ export const PERMISSION_SEEDS: readonly PermissionSeed[] = [
   seed('attribute.create', 'Create attributes', 'Add global lookup attributes'),
   seed('attribute.update', 'Edit attributes', 'Edit global lookup attributes'),
   seed('attribute.delete', 'Delete attributes', 'Delete custom global attributes'),
+  seed('category.manage', 'Manage categories', 'Full product-category tree control'),
+  seed('media.manage', 'Upload platform media', 'Upload platform artwork (categories, brands, CMS)'),
 ];
 
 export function hasPermission(granted: ReadonlySet<string>, required: string): boolean {
@@ -250,6 +256,28 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
         key: PERMISSIONS.SESSION_REVOKE,
         label: 'Revoke sessions',
         description: 'Revoke any admin session',
+      },
+    ],
+  },
+  {
+    group: 'categories',
+    label: 'Categories',
+    permissions: [
+      {
+        key: PERMISSIONS.CATEGORY_MANAGE,
+        label: 'Manage categories',
+        description: 'Full product-category tree control',
+      },
+    ],
+  },
+  {
+    group: 'media',
+    label: 'Platform media',
+    permissions: [
+      {
+        key: PERMISSIONS.MEDIA_MANAGE,
+        label: 'Upload platform media',
+        description: 'Upload platform artwork (categories, brands, CMS)',
       },
     ],
   },

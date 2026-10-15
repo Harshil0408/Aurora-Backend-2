@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { mediaRouter } from './media/media.routes.js';
+import { sellerCategoriesRouter } from './categories/categories.routes.js';
 
 /**
  * Catalog area — Phase 1 foundation (media → categories → brands →
@@ -9,3 +10,4 @@ import { mediaRouter } from './media/media.routes.js';
 export const catalogAreaRouter: Router = Router();
 
 catalogAreaRouter.use('/', mediaRouter);
+catalogAreaRouter.use('/', sellerCategoriesRouter);

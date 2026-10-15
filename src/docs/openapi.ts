@@ -1239,6 +1239,179 @@ export const openApiSpec = {
         responses: { '200': { description: 'Updated' } },
       },
     },
+    '/admin/uploads': {
+      post: {
+        tags: ['admin'],
+        summary: 'Upload platform artwork (images ≤10 MB) (perm: media.manage)',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'multipart/form-data': {
+              schema: {
+                type: 'object',
+                properties: {
+                  file: { type: 'string', format: 'binary' },
+                  folder: { type: 'string', example: 'categories' },
+                  altText: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        responses: { '201': { description: 'Asset { url, … } for artwork fields' } },
+      },
+    },
+    '/admin/categories/tree': {
+      get: {
+        tags: ['admin'],
+        summary: 'Full category tree, nested + ordered (perm: category.manage)',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Nested tree with breadcrumbs + leaf flags' } },
+      },
+    },
+    '/admin/categories': {
+      get: {
+        tags: ['admin'],
+        summary: 'Flat category list, search + status (perm: category.manage)',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Paginated categories' } },
+      },
+      post: {
+        tags: ['admin'],
+        summary: 'Create a category — slug auto-minted (perm: category.manage)',
+        security: [{ bearerAuth: [] }],
+        responses: { '201': { description: 'Category created' } },
+      },
+    },
+    '/admin/categories/export': {
+      get: {
+        tags: ['admin'],
+        summary: 'Tree-ordered export rows (perm: category.manage)',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Export rows' } },
+      },
+    },
+    '/admin/categories/import': {
+      post: {
+        tags: ['admin'],
+        summary: 'Validate or commit a row batch (perm: category.manage)',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Preview { creates, updates, errors }' } },
+      },
+    },
+    '/admin/categories/requests': {
+      get: {
+        tags: ['admin'],
+        summary: 'Seller new-category review queue (perm: category.manage)',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Paginated requests' } },
+      },
+    },
+    '/admin/categories/requests/{id}': {
+      patch: {
+        tags: ['admin'],
+        summary: 'Approve/reject a category request (perm: category.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Request decided' } },
+      },
+    },
+    '/admin/categories/access': {
+      get: {
+        tags: ['admin'],
+        summary: 'Restricted-category application queue (perm: category.manage)',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Paginated applications' } },
+      },
+    },
+    '/admin/categories/access/{id}': {
+      patch: {
+        tags: ['admin'],
+        summary: 'Approve/reject a restricted-category application (perm: category.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Application decided' } },
+      },
+    },
+    '/admin/categories/{id}': {
+      get: {
+        tags: ['admin'],
+        summary: 'Category detail + redirects (perm: category.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Category' } },
+      },
+      patch: {
+        tags: ['admin'],
+        summary: 'Edit / re-parent — slug change retires a redirect (perm: category.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Category updated' } },
+      },
+      delete: {
+        tags: ['admin'],
+        summary: 'Soft-delete; blocked with children unless reassignTo (perm: category.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Soft-deleted' } },
+      },
+    },
+    '/admin/categories/{id}/status': {
+      patch: {
+        tags: ['admin'],
+        summary: 'Activate/deactivate with reason (perm: category.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Updated' } },
+      },
+    },
+    '/seller/catalog/{storeId}/categories/tree': {
+      get: {
+        tags: ['seller'],
+        summary: 'Active tree with per-store restricted access state (needs category:view)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'storeId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Seller tree' } },
+      },
+    },
+    '/seller/catalog/{storeId}/categories/requests': {
+      get: {
+        tags: ['seller'],
+        summary: 'Own new-category requests (needs category:request)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'storeId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Request list' } },
+      },
+      post: {
+        tags: ['seller'],
+        summary: 'Propose a new category (needs category:request)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'storeId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '201': { description: 'Request filed' } },
+      },
+    },
+    '/seller/catalog/{storeId}/categories/access': {
+      get: {
+        tags: ['seller'],
+        summary: 'Own restricted-category applications (needs category:request)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'storeId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Application list' } },
+      },
+    },
+    '/seller/catalog/{storeId}/categories/{categoryId}/access': {
+      post: {
+        tags: ['seller'],
+        summary: 'Apply for restricted access with PDF proofs (needs category:request)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'storeId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'categoryId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: { '201': { description: 'Application filed' } },
+      },
+    },
     '/public/attributes': {
       get: {
         tags: ['public'],

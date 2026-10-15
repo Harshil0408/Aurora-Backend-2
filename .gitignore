@@ -9,4 +9,5 @@ src/generated/
 postman
 Thumbs.db
 uploads/
-!uploads/.gitkeep
+uploads
+uploads-test

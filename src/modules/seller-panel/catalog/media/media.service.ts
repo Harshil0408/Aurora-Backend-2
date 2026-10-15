@@ -1,13 +1,24 @@
-import { createHash, randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { Prisma } from '../../../../generated/prisma/client.js';
 import { getPrisma } from '../../../../config/db.js';
-import { getEnv } from '../../../../config/env.js';
 import { badRequest, conflict, notFound } from '../../../../shared/errors/AppError.js';
 import type { RequestMeta } from '../../../../shared/utils/requestMeta.js';
+import {
+  assertWholeFile,
+  checksumOf,
+  classifyFile,
+  persistBuffer,
+  publicUrlFor,
+  sanitizeFileName,
+  storageRoot,
+  type IncomingFile,
+} from '../../../../shared/uploads/files.js';
 import { recordStoreAudit } from '../../activity/store-audit.service.js';
 import type { ListMediaInput, UpdateMediaInput, UploadMetaInput } from './media.schemas.js';
+
+export { storageRoot };
+export type { IncomingFile };
 
 /**
  * Phase 1 · Module 1 — Media / Upload Service (local-driver MVP).
@@ -21,74 +32,7 @@ import type { ListMediaInput, UpdateMediaInput, UploadMetaInput } from './media.
  * multipart uploads and every mutating action writes to the store audit log.
  */
 
-interface IncomingFile {
-  originalname: string;
-  mimetype: string;
-  size: number;
-  buffer: Buffer;
-}
-
-const IMAGE_MIMES = new Set([
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/avif',
-  'image/gif',
-]);
-const VIDEO_MIMES = new Set(['video/mp4', 'video/webm']);
-const DOCUMENT_MIMES = new Set(['application/pdf']);
-
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
-const MAX_VIDEO_BYTES = 100 * 1024 * 1024;
-const MAX_DOCUMENT_BYTES = 25 * 1024 * 1024;
-
-// Extension allowlist — blocks double-extension tricks (.svg.exe) and
-// executables masquerading with an image MIME type.
-const ALLOWED_EXTENSIONS = new Set([
-  'jpg',
-  'jpeg',
-  'png',
-  'webp',
-  'avif',
-  'gif',
-  'mp4',
-  'webm',
-  'pdf',
-]);
-
 const DEFAULT_QUOTA_MB = 100;
-
-export function storageRoot(): string {
-  return path.resolve(process.cwd(), getEnv().STORAGE_DIR);
-}
-
-export function classifyFile(mime: string, size: number): 'IMAGE' | 'VIDEO' | 'DOCUMENT' {
-  if (IMAGE_MIMES.has(mime)) {
-    if (size > MAX_IMAGE_BYTES) throw badRequest('Image exceeds 10 MB limit');
-    return 'IMAGE';
-  }
-  if (VIDEO_MIMES.has(mime)) {
-    if (size > MAX_VIDEO_BYTES) throw badRequest('Video exceeds 100 MB limit');
-    return 'VIDEO';
-  }
-  if (DOCUMENT_MIMES.has(mime)) {
-    if (size > MAX_DOCUMENT_BYTES) throw badRequest('Document exceeds 25 MB limit');
-    return 'DOCUMENT';
-  }
-  throw badRequest(`Unsupported file type: ${mime}`);
-}
-
-export function sanitizeFileName(original: string): string {
-  const base = path.basename(original).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 200);
-  const ext = base.includes('.') ? (base.split('.').pop() ?? '').toLowerCase() : '';
-  if (!ext || !ALLOWED_EXTENSIONS.has(ext)) throw badRequest('File extension not allowed');
-  const stem = base.slice(0, base.length - ext.length - 1).slice(0, 150) || 'file';
-  return `${stem}.${ext}`;
-}
-
-export function checksumOf(buffer: Buffer): string {
-  return createHash('sha256').update(buffer).digest('hex');
-}
 
 /** Plan quota in MB — active subscription wins, else the Free default. */
 export async function getStorageQuotaMb(storeId: string): Promise<number> {
@@ -160,14 +104,6 @@ export async function listMedia(storeId: string, query: ListMediaInput) {
   };
 }
 
-function publicUrlFor(storageKey: string): string {
-  // Static mount is `/uploads` → `<STORAGE_DIR>/public`, so the `public/`
-  // scope prefix on the storage key must be stripped: the on-disk file
-  // `public/stores/<id>/<file>` is served at `/uploads/stores/<id>/<file>`.
-  const normalized = storageKey.split(path.sep).join('/');
-  return `/uploads/${normalized.replace(/^(public|private)\//, '')}`;
-}
-
 export async function uploadMedia(
   storeId: string,
   sellerId: string,
@@ -176,8 +112,7 @@ export async function uploadMedia(
   meta: UploadMetaInput,
   reqMeta: RequestMeta,
 ): Promise<{ asset: unknown; deduped: boolean }> {
-  if (!file.buffer || file.buffer.length === 0) throw badRequest('Empty file');
-  if (file.size !== file.buffer.length) throw badRequest('File size mismatch');
+  assertWholeFile(file);
 
   const kind = classifyFile(file.mimetype, file.buffer.length);
   const fileName = sanitizeFileName(file.originalname);
@@ -197,10 +132,11 @@ export async function uploadMedia(
   }
 
   const scope = visibility === 'PRIVATE' ? 'private' : 'public';
-  const storageKey = path.join(scope, 'stores', storeId, `${randomUUID()}-${fileName}`);
-  const absolute = path.join(storageRoot(), storageKey);
-  await fs.mkdir(path.dirname(absolute), { recursive: true });
-  await fs.writeFile(absolute, file.buffer);
+  const { storageKey, absolute } = await persistBuffer(
+    [scope, 'stores', storeId],
+    fileName,
+    file.buffer,
+  );
 
   try {
     const asset = await prisma.$transaction(async (tx) => {

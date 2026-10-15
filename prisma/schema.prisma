@@ -355,6 +355,7 @@ model SellerUser {
   ownedStores  Store[]           @relation("StoreOwner")
   sentInvites  StoreInvitation[] @relation("InvitationInviter")
   auditEvents  StoreAuditLog[]   @relation("StoreAuditActor")
+  categoryRequests CategoryRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -416,6 +417,8 @@ model Store {
   auditLogs     StoreAuditLog[]
   subscriptions StoreSubscription[]
   mediaAssets   StoreMediaAsset[]
+  categoryRequests CategoryRequest[]
+  accessGrants     CategoryAccessGrant[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -661,6 +664,143 @@ enum SubscriptionStatus {
 enum BillingCycle {
   MONTHLY
   YEARLY
+}
+
+// ─── Catalog: product category tree (Phase 1, Module 2) ────────────────────
+// Admin-owned, seller-consumed. Distinct from the flat `store_category`
+// lookup rows (store-profile taxonomy) — this is the product taxonomy.
+// Products may only attach to leaf categories (enforced in Module 6).
+// Category artwork is URL strings: admin has no media library yet; the
+// store-scoped Module 1 library cannot host platform assets.
+model Category {
+  id String @id @default(cuid())
+
+  parentId String?
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children Category[] @relation("CategoryTree")
+
+  name String @db.VarChar(128)
+  slug String @unique @db.VarChar(160)
+
+  description String? @db.VarChar(2000)
+  imageUrl    String? @db.VarChar(1024)
+  bannerUrl   String? @db.VarChar(1024)
+  icon        String? @db.VarChar(64)
+
+  displayOrder   Int            @default(0)
+  status         CategoryStatus @default(ACTIVE)
+  showInNav      Boolean        @default(true)
+  showOnHomepage Boolean        @default(false)
+  restricted     Boolean        @default(false)
+
+  metaTitle       String? @db.VarChar(160)
+  metaDescription String? @db.VarChar(320)
+  canonicalUrl    String? @db.VarChar(1024)
+  ogImageUrl      String? @db.VarChar(1024)
+
+  // Forward placeholders — FK targets land in Modules 4 (attribute sets),
+  // 5 (tax classes) and 6/29 (commission). Nullable until then; the admin
+  // UI renders them disabled with an explanatory note.
+  attributeSetId    String?
+  taxClassId        String?
+  commissionRateBps Int?
+  returnWindowDays  Int?
+
+  deletedAt DateTime?
+
+  redirects   CategoryRedirect[]
+  accessGrants CategoryAccessGrant[]
+  requestedAs CategoryRequest[] @relation("RequestedParent")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([parentId, displayOrder])
+  @@index([status])
+  @@map("categories")
+}
+
+enum CategoryStatus {
+  ACTIVE
+  INACTIVE
+}
+
+// Old slugs → 301 redirect targets. Rows are never reused: a slug, once
+// retired, stays reserved so historic links never get hijacked.
+model CategoryRedirect {
+  id String @id @default(cuid())
+
+  slug       String   @unique @db.VarChar(160)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([categoryId])
+  @@map("category_redirects")
+}
+
+// Seller proposal for a missing category. Approved requests do NOT
+// auto-create — an admin creates the real node (possibly elsewhere in the
+// tree) and links it back via `resolvedCategoryId`.
+model CategoryRequest {
+  id String @id @default(cuid())
+
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  sellerId String?
+  seller   SellerUser? @relation(fields: [sellerId], references: [id], onDelete: SetNull)
+
+  name             String  @db.VarChar(128)
+  justification    String  @db.VarChar(1000)
+  proposedParentId String?
+  proposedParent   Category? @relation("RequestedParent", fields: [proposedParentId], references: [id], onDelete: SetNull)
+
+  status             ApprovalStatus @default(PENDING)
+  reviewNote         String?        @db.VarChar(1000)
+  resolvedCategoryId String?
+  reviewedById       String?
+  decidedAt          DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId, status])
+  @@index([status, createdAt])
+  @@map("category_requests")
+}
+
+// Per-store access to a restricted category (document-backed approval).
+model CategoryAccessGrant {
+  id String @id @default(cuid())
+
+  storeId String
+  store   Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  // Seller media-asset ids proving authorisation (licences, letters).
+  documentAssetIds String[] @default([])
+
+  status       ApprovalStatus @default(PENDING)
+  reviewNote   String?        @db.VarChar(1000)
+  reviewedById String?
+  decidedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId, categoryId])
+  @@index([status, createdAt])
+  @@map("category_access_grants")
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 // ─── Catalog: store-scoped media library (Phase 1, Module 1) ───────────────

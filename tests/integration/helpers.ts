@@ -29,6 +29,10 @@ const TABLES = [
   'subscription_plans',
   'seller_sessions',
   'store_media_assets',
+  'category_access_grants',
+  'category_requests',
+  'category_redirects',
+  'categories',
   'stores',
   'seller_users',
 ];
