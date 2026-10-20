@@ -46,6 +46,7 @@ export const PERMISSIONS = {
   ATTRIBUTE_UPDATE: 'attribute.update',
   ATTRIBUTE_DELETE: 'attribute.delete',
   CATEGORY_MANAGE: 'category.manage',
+  BRAND_MANAGE: 'brand.manage',
   MEDIA_MANAGE: 'media.manage',
   // NOTE: users/products/orders keys live here ONLY once those modules
   // ship. Do not pre-seed future modules — the catalog mirrors reality.
@@ -72,6 +73,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, readonly PermissionKey[]> 
     PERMISSIONS.ATTRIBUTE_CREATE,
     PERMISSIONS.ATTRIBUTE_UPDATE,
     PERMISSIONS.CATEGORY_MANAGE,
+    PERMISSIONS.BRAND_MANAGE,
     PERMISSIONS.MEDIA_MANAGE,
   ],
   [SUPPORT_ROLE_KEY]: [
@@ -146,6 +148,7 @@ export const PERMISSION_SEEDS: readonly PermissionSeed[] = [
   seed('attribute.update', 'Edit attributes', 'Edit global lookup attributes'),
   seed('attribute.delete', 'Delete attributes', 'Delete custom global attributes'),
   seed('category.manage', 'Manage categories', 'Full product-category tree control'),
+  seed('brand.manage', 'Manage brands', 'Full brand master control: CRUD, merges, approvals'),
   seed('media.manage', 'Upload platform media', 'Upload platform artwork (categories, brands, CMS)'),
 ];
 
@@ -267,6 +270,17 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
         key: PERMISSIONS.CATEGORY_MANAGE,
         label: 'Manage categories',
         description: 'Full product-category tree control',
+      },
+    ],
+  },
+  {
+    group: 'brands',
+    label: 'Brands',
+    permissions: [
+      {
+        key: PERMISSIONS.BRAND_MANAGE,
+        label: 'Manage brands',
+        description: 'Full brand master control: CRUD, merges, seller approvals',
       },
     ],
   },

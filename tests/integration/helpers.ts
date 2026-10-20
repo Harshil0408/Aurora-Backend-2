@@ -33,6 +33,10 @@ const TABLES = [
   'category_requests',
   'category_redirects',
   'categories',
+  'brand_authorizations',
+  'brand_redirects',
+  'brand_requests',
+  'brands',
   'stores',
   'seller_users',
 ];

@@ -1366,6 +1366,104 @@ export const openApiSpec = {
         responses: { '200': { description: 'Updated' } },
       },
     },
+    '/admin/brands': {
+      get: {
+        tags: ['admin'],
+        summary: 'Brand list — search, status, restricted, featured (perm: brand.manage)',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Paginated brands' } },
+      },
+      post: {
+        tags: ['admin'],
+        summary: 'Create a brand — slug auto-minted (perm: brand.manage)',
+        security: [{ bearerAuth: [] }],
+        responses: { '201': { description: 'Brand created' } },
+      },
+    },
+    '/admin/brands/export': {
+      get: {
+        tags: ['admin'],
+        summary: 'Export rows for CSV (perm: brand.manage)',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Export rows' } },
+      },
+    },
+    '/admin/brands/import': {
+      post: {
+        tags: ['admin'],
+        summary: 'Validate or commit a brand row batch — match by slug (perm: brand.manage)',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Preview { creates, updates, errors }' } },
+      },
+    },
+    '/admin/brands/requests': {
+      get: {
+        tags: ['admin'],
+        summary: 'Seller new-brand review queue (perm: brand.manage)',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Paginated requests' } },
+      },
+    },
+    '/admin/brands/requests/{id}': {
+      patch: {
+        tags: ['admin'],
+        summary: 'Approve/reject — approval links the real brand via resolvedBrandId (perm: brand.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Request decided' } },
+      },
+    },
+    '/admin/brands/authorisations': {
+      get: {
+        tags: ['admin'],
+        summary: 'Brand authorisation application queue (perm: brand.manage)',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Paginated applications' } },
+      },
+    },
+    '/admin/brands/authorisations/{id}': {
+      patch: {
+        tags: ['admin'],
+        summary: 'Approve (with optional expiresAt) / reject an authorisation (perm: brand.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Application decided' } },
+      },
+    },
+    '/admin/brands/{id}': {
+      get: {
+        tags: ['admin'],
+        summary: 'Brand detail + redirects + recent authorisations (perm: brand.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Brand' } },
+      },
+      patch: {
+        tags: ['admin'],
+        summary: 'Edit — slug/flag changes (restricted, featured); rename retires a redirect (perm: brand.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Brand updated' } },
+      },
+    },
+    '/admin/brands/{id}/status': {
+      patch: {
+        tags: ['admin'],
+        summary: 'Activate/deactivate with reason (perm: brand.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Updated' } },
+      },
+    },
+    '/admin/brands/{id}/merge': {
+      post: {
+        tags: ['admin'],
+        summary: 'Merge this brand into targetId — re-points authorisations, retires slugs (perm: brand.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Merge committed' } },
+      },
+    },
     '/seller/catalog/{storeId}/categories/tree': {
       get: {
         tags: ['seller'],
@@ -1410,6 +1508,76 @@ export const openApiSpec = {
           { name: 'categoryId', in: 'path', required: true, schema: { type: 'string' } },
         ],
         responses: { '201': { description: 'Application filed' } },
+      },
+    },
+    '/seller/catalog/{storeId}/brands': {
+      get: {
+        tags: ['seller'],
+        summary: 'Active brand list with per-store access state (needs brand:view)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'storeId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'search', in: 'query', schema: { type: 'string' } },
+          { name: 'openOnly', in: 'query', schema: { type: 'boolean', default: false } },
+          { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 50 } },
+        ],
+        responses: { '200': { description: 'Paginated brands' } },
+      },
+    },
+    '/seller/catalog/{storeId}/brands/requests': {
+      get: {
+        tags: ['seller'],
+        summary: 'Own new-brand requests (needs brand:request)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'storeId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'status', in: 'query', schema: { type: 'string', enum: ['PENDING', 'APPROVED', 'REJECTED'] } },
+        ],
+        responses: { '200': { description: 'Request list' } },
+      },
+      post: {
+        tags: ['seller'],
+        summary: 'Propose a new brand with ownership proofs (needs brand:request)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'storeId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '201': { description: 'Request filed' } },
+      },
+    },
+    '/seller/catalog/{storeId}/brands/authorisations': {
+      get: {
+        tags: ['seller'],
+        summary: 'Own authorisation applications (needs brand:request)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'storeId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'status', in: 'query', schema: { type: 'string', enum: ['PENDING', 'APPROVED', 'REJECTED'] } },
+        ],
+        responses: { '200': { description: 'Application list' } },
+      },
+    },
+    '/seller/catalog/{storeId}/brands/{brandId}/authorisations': {
+      post: {
+        tags: ['seller'],
+        summary: 'File authorisation documents for a restricted brand (needs brand:request)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'storeId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'brandId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: { '201': { description: 'Application filed' } },
+      },
+    },
+    '/seller/catalog/{storeId}/brands/{brandId}/access': {
+      get: {
+        tags: ['seller'],
+        summary: 'Point lookup: open/restricted/pending/granted/expired (needs brand:view)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'storeId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'brandId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'Access state' } },
       },
     },
     '/public/attributes': {

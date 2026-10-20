@@ -10,11 +10,11 @@ datasource db {
 model AdminUser {
   id String @id @default(cuid())
 
-  email             String    @unique @db.VarChar(255)
-  emailNormalized   String    @unique @db.VarChar(255)
-  name              String?   @db.VarChar(255)
+  email             String                 @unique @db.VarChar(255)
+  emailNormalized   String                 @unique @db.VarChar(255)
+  name              String?                @db.VarChar(255)
   lastLoginAt       DateTime?
-  passwordHash      String    @db.VarChar(255)
+  passwordHash      String                 @db.VarChar(255)
   passwordChangedAt DateTime?
   passwordHistory   AdminPasswordHistory[]
 
@@ -27,7 +27,7 @@ model AdminUser {
   totpEnrolledAt      DateTime?
 
   // 2FA via emailed one-time code (alternative to TOTP; either enables 2FA)
-  emailOtpEnabled    Boolean   @default(false)
+  emailOtpEnabled    Boolean         @default(false)
   emailOtpEnrolledAt DateTime?
   emailOtps          AdminEmailOtp[]
 
@@ -44,12 +44,12 @@ model AdminUser {
   // can never authorize after a change (PDF §13–14).
   permissionsVersion Int @default(0)
 
-  roles    AdminRoleAssignment[]
-  sessions AdminSession[]
+  roles         AdminRoleAssignment[]
+  sessions      AdminSession[]
   recoveryCodes AdminRecoveryCode[]
   resetTokens   AdminPasswordResetToken[]
   loginEvents   AdminLoginActivity[]
-  auditEvents   AdminAuditLog[] @relation("AuditActor")
+  auditEvents   AdminAuditLog[]           @relation("AuditActor")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -59,22 +59,22 @@ model AdminUser {
 }
 
 model AdminPasswordHistory {
-  id        String   @id @default(cuid())
-  adminId   String
-  admin     AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
-  passwordHash String @db.VarChar(255)
-  createdAt DateTime @default(now())
+  id           String    @id @default(cuid())
+  adminId      String
+  admin        AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  passwordHash String    @db.VarChar(255)
+  createdAt    DateTime  @default(now())
 
   @@index([adminId, createdAt])
   @@map("admin_password_history")
 }
 
 model AdminRole {
-  id          String  @id @default(cuid())
-  key         String  @unique @db.VarChar(64) // e.g. super_admin, sub_admin, support
-  name        String  @db.VarChar(128)
-  description String? @db.VarChar(500)
-  isSystem    Boolean @default(false) // system roles cannot be deleted
+  id          String     @id @default(cuid())
+  key         String     @unique @db.VarChar(64) // e.g. super_admin, sub_admin, support
+  name        String     @db.VarChar(128)
+  description String?    @db.VarChar(500)
+  isSystem    Boolean    @default(false) // system roles cannot be deleted
   status      RoleStatus @default(ACTIVE) // INACTIVE roles grant nothing
 
   permissions AdminRolePermission[]
@@ -88,14 +88,14 @@ model AdminRole {
 }
 
 model Permission {
-  id          String  @id @default(cuid())
-  key         String  @unique @db.VarChar(128) // canonical module.action, e.g. session.revoke
-  module      String  @db.VarChar(64) // e.g. admin, role, audit, session
-  action      String  @db.VarChar(64) // e.g. read, create, revoke
-  label       String? @db.VarChar(128) // UI display name, safe to rename
-  description String? @db.VarChar(500)
+  id          String           @id @default(cuid())
+  key         String           @unique @db.VarChar(128) // canonical module.action, e.g. session.revoke
+  module      String           @db.VarChar(64) // e.g. admin, role, audit, session
+  action      String           @db.VarChar(64) // e.g. read, create, revoke
+  label       String?          @db.VarChar(128) // UI display name, safe to rename
+  description String?          @db.VarChar(500)
   status      PermissionStatus @default(ACTIVE) // INACTIVE can never authorize
-  isSystem    Boolean @default(false) // system permissions cannot be deleted
+  isSystem    Boolean          @default(false) // system permissions cannot be deleted
 
   roles AdminRolePermission[]
 
@@ -125,7 +125,7 @@ model AdminRoleAssignment {
   admin      AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
   role       AdminRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
   assignedBy String? // acting admin id (audit join, no FK to allow retention)
-  assignedAt DateTime @default(now())
+  assignedAt DateTime  @default(now())
 
   @@id([adminId, roleId])
   @@index([roleId])
@@ -141,16 +141,16 @@ model AdminSession {
   adminId String
   admin   AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
 
-  refreshTokenHash         String    @unique @db.VarChar(128)
-  previousTokenHash        String?   @db.VarChar(128)
-  familyId                 String    @db.VarChar(64)
-  ipAddress                String?   @db.VarChar(64)
-  userAgent                String?   @db.VarChar(512)
-  expiresAt                DateTime
-  revokedAt                DateTime?
-  revokeReason             String?   @db.VarChar(128)
-  lastUsedAt               DateTime  @default(now())
-  createdAt                DateTime  @default(now())
+  refreshTokenHash  String    @unique @db.VarChar(128)
+  previousTokenHash String?   @db.VarChar(128)
+  familyId          String    @db.VarChar(64)
+  ipAddress         String?   @db.VarChar(64)
+  userAgent         String?   @db.VarChar(512)
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  revokeReason      String?   @db.VarChar(128)
+  lastUsedAt        DateTime  @default(now())
+  createdAt         DateTime  @default(now())
 
   @@index([adminId])
   @@index([familyId])
@@ -159,12 +159,12 @@ model AdminSession {
 }
 
 model AdminRecoveryCode {
-  id         String    @id @default(cuid())
-  adminId    String
-  admin      AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
-  codeHash   String    @db.VarChar(255) // Argon2id hash, single-use
-  usedAt     DateTime?
-  createdAt  DateTime  @default(now())
+  id        String    @id @default(cuid())
+  adminId   String
+  admin     AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  codeHash  String    @db.VarChar(255) // Argon2id hash, single-use
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 
   @@index([adminId])
   @@map("admin_recovery_codes")
@@ -204,17 +204,17 @@ model AdminEmailOtp {
 }
 
 model AdminLoginActivity {
-  id        String  @id @default(cuid())
+  id        String         @id @default(cuid())
   adminId   String?
-  admin     AdminUser? @relation(fields: [adminId], references: [id], onDelete: SetNull)
+  admin     AdminUser?     @relation(fields: [adminId], references: [id], onDelete: SetNull)
   event     LoginEventType
   outcome   LoginOutcome
-  ipAddress String? @db.VarChar(64)
-  userAgent String? @db.VarChar(512)
-  sessionId String? @db.VarChar(64)
-  requestId String? @db.VarChar(64)
+  ipAddress String?        @db.VarChar(64)
+  userAgent String?        @db.VarChar(512)
+  sessionId String?        @db.VarChar(64)
+  requestId String?        @db.VarChar(64)
   metadata  Json?
-  createdAt DateTime @default(now())
+  createdAt DateTime       @default(now())
 
   @@index([adminId, createdAt])
   @@index([event, createdAt])
@@ -222,24 +222,24 @@ model AdminLoginActivity {
 }
 
 model AdminAuditLog {
-  id         String   @id @default(cuid())
-  actorId    String?
-  actor      AdminUser? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  id            String     @id @default(cuid())
+  actorId       String?
+  actor         AdminUser? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
   // Write-time snapshots (spec §3.1): history must read correctly after the
   // actor is renamed or the target role/admin is deleted. Resolved by
   // recordAudit inside the writing transaction; never JOINed at read time.
-  actorEmail    String? @db.VarChar(320)
-  actorName     String? @db.VarChar(128)
-  resourceLabel String? @db.VarChar(320)
-  action     String   @db.VarChar(128) // e.g. admin.suspend, role.assign
-  resourceType String @db.VarChar(64)
-  resourceId   String? @db.VarChar(64)
-  before       Json?
-  after        Json?
-  ipAddress    String? @db.VarChar(64)
-  userAgent    String? // unbounded: UA strings vary wildly in length
-  requestId    String? @db.VarChar(64)
-  createdAt    DateTime @default(now())
+  actorEmail    String?    @db.VarChar(320)
+  actorName     String?    @db.VarChar(128)
+  resourceLabel String?    @db.VarChar(320)
+  action        String     @db.VarChar(128) // e.g. admin.suspend, role.assign
+  resourceType  String     @db.VarChar(64)
+  resourceId    String?    @db.VarChar(64)
+  before        Json?
+  after         Json?
+  ipAddress     String?    @db.VarChar(64)
+  userAgent     String? // unbounded: UA strings vary wildly in length
+  requestId     String?    @db.VarChar(64)
+  createdAt     DateTime   @default(now())
 
   @@index([actorId, createdAt])
   @@index([resourceType, resourceId])
@@ -299,9 +299,9 @@ enum LoginOutcome {
 model Attribute {
   id String @id @default(cuid())
 
-  type  String @db.VarChar(64) // e.g. category, payment_type, country, language
-  key   String @db.VarChar(128) // slug, unique per type, e.g. "fashion", "upi"
-  label String @db.VarChar(255) // display name
+  type  String  @db.VarChar(64) // e.g. category, payment_type, country, language
+  key   String  @db.VarChar(128) // slug, unique per type, e.g. "fashion", "upi"
+  label String  @db.VarChar(255) // display name
   value String? @db.VarChar(255) // optional code/payload, e.g. "INR", "+91"
 
   description String? @db.VarChar(500)
@@ -350,12 +350,13 @@ model SellerUser {
   // Bump to revoke all JWTs + sessions (global logout / compromise).
   tokenVersion Int @default(0)
 
-  sessions     SellerSession[]
-  memberships  StoreMembership[]
-  ownedStores  Store[]           @relation("StoreOwner")
-  sentInvites  StoreInvitation[] @relation("InvitationInviter")
-  auditEvents  StoreAuditLog[]   @relation("StoreAuditActor")
+  sessions         SellerSession[]
+  memberships      StoreMembership[]
+  ownedStores      Store[]           @relation("StoreOwner")
+  sentInvites      StoreInvitation[] @relation("InvitationInviter")
+  auditEvents      StoreAuditLog[]   @relation("StoreAuditActor")
   categoryRequests CategoryRequest[]
+  brandRequests    BrandRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -401,9 +402,9 @@ model Store {
   ownerId String
   owner   SellerUser @relation("StoreOwner", fields: [ownerId], references: [id], onDelete: Restrict)
 
-  country   String? @db.VarChar(64)
-  currency  String  @default("INR") @db.VarChar(8)
-  timezone  String  @default("Asia/Kolkata") @db.VarChar(64)
+  country      String? @db.VarChar(64)
+  currency     String  @default("INR") @db.VarChar(8)
+  timezone     String  @default("Asia/Kolkata") @db.VarChar(64)
   contactEmail String? @db.VarChar(255)
   contactPhone String? @db.VarChar(32)
 
@@ -411,14 +412,16 @@ model Store {
 
   deletedAt DateTime?
 
-  memberships   StoreMembership[]
-  roles         StoreRole[]
-  invitations   StoreInvitation[]
-  auditLogs     StoreAuditLog[]
-  subscriptions StoreSubscription[]
-  mediaAssets   StoreMediaAsset[]
-  categoryRequests CategoryRequest[]
-  accessGrants     CategoryAccessGrant[]
+  memberships         StoreMembership[]
+  roles               StoreRole[]
+  invitations         StoreInvitation[]
+  auditLogs           StoreAuditLog[]
+  subscriptions       StoreSubscription[]
+  mediaAssets         StoreMediaAsset[]
+  categoryRequests    CategoryRequest[]
+  accessGrants        CategoryAccessGrant[]
+  brandRequests       BrandRequest[]
+  brandAuthorisations BrandAuthorization[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -460,10 +463,10 @@ model StoreRole {
   storeId String
   store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
-  key         String  @db.VarChar(64)
-  name        String  @db.VarChar(128)
-  description String? @db.VarChar(500)
-  isSystem    Boolean @default(false)
+  key         String     @db.VarChar(64)
+  name        String     @db.VarChar(128)
+  description String?    @db.VarChar(500)
+  isSystem    Boolean    @default(false)
   status      RoleStatus @default(ACTIVE)
 
   permissions StoreRolePermission[]
@@ -524,7 +527,7 @@ model StoreInvitation {
   roleId String
   role   StoreRole @relation(fields: [roleId], references: [id], onDelete: Restrict)
 
-  tokenHash String    @unique @db.VarChar(128)
+  tokenHash String           @unique @db.VarChar(128)
   status    InvitationStatus @default(PENDING)
   expiresAt DateTime
 
@@ -546,17 +549,17 @@ model StoreAuditLog {
   storeId String
   store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
-  actorId String?
-  actor   SellerUser? @relation("StoreAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
-  actorEmail String? @db.VarChar(320)
+  actorId    String?
+  actor      SellerUser? @relation("StoreAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  actorEmail String?     @db.VarChar(320)
 
-  action       String  @db.VarChar(128)
-  resourceType String  @db.VarChar(64)
-  resourceId   String? @db.VarChar(64)
+  action       String   @db.VarChar(128)
+  resourceType String   @db.VarChar(64)
+  resourceId   String?  @db.VarChar(64)
   metadata     Json?
-  ipAddress    String? @db.VarChar(64)
+  ipAddress    String?  @db.VarChar(64)
   userAgent    String?
-  requestId    String? @db.VarChar(64)
+  requestId    String?  @db.VarChar(64)
   createdAt    DateTime @default(now())
 
   @@index([storeId, createdAt])
@@ -572,15 +575,15 @@ model SubscriptionPlan {
   name        String  @db.VarChar(128)
   description String? @db.VarChar(500)
 
-  pricePaise   Int @default(0)
-  currency     String @default("INR") @db.VarChar(8)
+  pricePaise   Int          @default(0)
+  currency     String       @default("INR") @db.VarChar(8)
   billingCycle BillingCycle @default(MONTHLY)
 
   // Entitlement limits, e.g. { "products.max": 100, "staff.max": 5 }.
   // Enforced by an entitlement service — never hardcoded plan branches.
   limits Json?
 
-  trialDays Int @default(0)
+  trialDays Int     @default(0)
   isActive  Boolean @default(true)
 
   subscriptions StoreSubscription[]
@@ -600,18 +603,18 @@ model StoreSubscription {
   planId String
   plan   SubscriptionPlan @relation(fields: [planId], references: [id], onDelete: Restrict)
 
-  status SubscriptionStatus @default(TRIALING)
-  billingCycle BillingCycle @default(MONTHLY)
+  status       SubscriptionStatus @default(TRIALING)
+  billingCycle BillingCycle       @default(MONTHLY)
 
-  provider                 String?   @db.VarChar(64)
-  providerCustomerId       String?   @db.VarChar(128)
-  providerSubscriptionId   String?   @db.VarChar(128)
-  currentPeriodStart       DateTime?
-  currentPeriodEnd         DateTime?
-  trialStart               DateTime?
-  trialEnd                 DateTime?
-  cancelAt                 DateTime?
-  cancelledAt              DateTime?
+  provider               String?   @db.VarChar(64)
+  providerCustomerId     String?   @db.VarChar(128)
+  providerSubscriptionId String?   @db.VarChar(128)
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  trialStart             DateTime?
+  trialEnd               DateTime?
+  cancelAt               DateTime?
+  cancelledAt            DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -708,9 +711,9 @@ model Category {
 
   deletedAt DateTime?
 
-  redirects   CategoryRedirect[]
+  redirects    CategoryRedirect[]
   accessGrants CategoryAccessGrant[]
-  requestedAs CategoryRequest[] @relation("RequestedParent")
+  requestedAs  CategoryRequest[]     @relation("RequestedParent")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -752,8 +755,8 @@ model CategoryRequest {
   sellerId String?
   seller   SellerUser? @relation(fields: [sellerId], references: [id], onDelete: SetNull)
 
-  name             String  @db.VarChar(128)
-  justification    String  @db.VarChar(1000)
+  name             String    @db.VarChar(128)
+  justification    String    @db.VarChar(1000)
   proposedParentId String?
   proposedParent   Category? @relation("RequestedParent", fields: [proposedParentId], references: [id], onDelete: SetNull)
 
@@ -776,7 +779,7 @@ model CategoryAccessGrant {
   id String @id @default(cuid())
 
   storeId String
-  store   Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
@@ -831,8 +834,8 @@ model StoreMediaAsset {
   width  Int?
   height Int?
 
-  altText String? @db.VarChar(255)
-  caption String? @db.VarChar(500)
+  altText String?  @db.VarChar(255)
+  caption String?  @db.VarChar(500)
   folder  String   @default("general") @db.VarChar(128)
   tags    String[] @default([])
 
@@ -867,4 +870,130 @@ enum MediaStatus {
   PENDING
   READY
   FAILED
+}
+
+// ─── Catalog: brand master (Phase 1, Module 3) ────────────────────────────
+// Admin-owned platform master; sellers consume via search, requests and
+// per-store authorisations. Restricted brands need an APPROVED
+// BrandAuthorisation for the store before products may publish (Module 6
+// reads the access helper). Expiry: authorisations carry expiresAt — the
+// seller list surfaces expiring/expired states now; the auto-unpublish
+// sweep lands with the product job scheduler (Module 6+).
+// Artwork is URL strings, mirroring Module 2 (no platform media library yet).
+model Brand {
+  id String @id @default(cuid())
+
+  name String @db.VarChar(128)
+  slug String @unique @db.VarChar(160)
+
+  logoUrl     String? @db.VarChar(1024)
+  bannerUrl   String? @db.VarChar(1024)
+  description String? @db.VarChar(2000)
+  website     String? @db.VarChar(512)
+  country     String? @db.VarChar(64)
+
+  status     BrandStatus @default(ACTIVE)
+  restricted Boolean     @default(false)
+  featured   Boolean     @default(false)
+
+  // Duplicate consolidation: soft-deleted rows point at the surviving
+  // brand; authorisations re-point at merge. Never reused as a live id.
+  mergedIntoId String? @db.VarChar(64)
+
+  deletedAt DateTime?
+
+  redirects      BrandRedirect[]
+  authorisations BrandAuthorization[]
+  requestedAs    BrandRequest[]       @relation("ResolvedBrand")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([featured])
+  @@index([name])
+  @@map("brands")
+}
+
+enum BrandStatus {
+  ACTIVE
+  INACTIVE
+}
+
+// Retired slugs → surviving brand (from merges/rename). Never reused:
+// a slug, once retired, stays reserved so historic links never 404.
+model BrandRedirect {
+  id String @id @default(cuid())
+
+  slug    String @unique @db.VarChar(160)
+  brandId String
+  brand   Brand  @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([brandId])
+  @@map("brand_redirects")
+}
+
+// Seller proposal for a missing brand. Approved requests do NOT
+// auto-create — the admin creates the real row and links it back via
+// `resolvedBrandId` (same contract as Module 2 category requests).
+model BrandRequest {
+  id String @id @default(cuid())
+
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  sellerId String?
+  seller   SellerUser? @relation(fields: [sellerId], references: [id], onDelete: SetNull)
+
+  name    String  @db.VarChar(128)
+  website String? @db.VarChar(512)
+
+  // Seller media-asset ids proving ownership/authorisation (Module 1).
+  proofAssetIds String[] @default([])
+  justification String   @db.VarChar(1000)
+
+  status          ApprovalStatus @default(PENDING)
+  reviewNote      String?        @db.VarChar(1000)
+  resolvedBrandId String?
+  resolvedBrand   Brand?         @relation("ResolvedBrand", fields: [resolvedBrandId], references: [id], onDelete: SetNull)
+  reviewedById    String?        @db.VarChar(64)
+  decidedAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId, status])
+  @@index([status, createdAt])
+  @@map("brand_requests")
+}
+
+// Per-store authorisation to sell a (usually restricted) brand, backed by
+// documents and an optional expiry that gates future publishing.
+model BrandAuthorization {
+  id String @id @default(cuid())
+
+  brandId String
+  brand   Brand  @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  documentAssetIds String[] @default([])
+
+  status     ApprovalStatus @default(PENDING)
+  reviewNote String?        @db.VarChar(1000)
+  expiresAt  DateTime?
+
+  reviewedById String?   @db.VarChar(64)
+  decidedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId, brandId])
+  @@index([brandId, status])
+  @@index([storeId, status, createdAt])
+  @@map("brand_authorizations")
 }

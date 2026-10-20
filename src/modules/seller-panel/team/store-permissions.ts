@@ -56,6 +56,8 @@ export const STORE_PERMISSIONS = {
   MEDIA_DELETE: 'media:delete',
   CATEGORY_VIEW: 'category:view',
   CATEGORY_REQUEST: 'category:request',
+  BRAND_VIEW: 'brand:view',
+  BRAND_REQUEST: 'brand:request',
 } as const;
 
 export type StorePermissionKey = (typeof STORE_PERMISSIONS)[keyof typeof STORE_PERMISSIONS];
@@ -114,6 +116,8 @@ export const STORE_PERMISSION_SEEDS: readonly StorePermissionSeed[] = [
   seed('media:delete', 'Delete media', 'Delete media assets (blocked when in use)'),
   seed('category:view', 'View categories', 'Browse the product category tree'),
   seed('category:request', 'Request categories', 'Propose categories and restricted access'),
+  seed('brand:view', 'View brands', 'Browse the brand master for product assignment'),
+  seed('brand:request', 'Request brands', 'Propose brands and file authorisations'),
 ];
 
 /**
@@ -136,6 +140,7 @@ export const DEFAULT_STORE_ROLE_PERMISSIONS: Record<string, readonly StorePermis
     STORE_PERMISSIONS.SETTINGS_READ,
     STORE_PERMISSIONS.MEDIA_VIEW,
     STORE_PERMISSIONS.CATEGORY_VIEW,
+    STORE_PERMISSIONS.BRAND_VIEW,
   ],
 };
 
