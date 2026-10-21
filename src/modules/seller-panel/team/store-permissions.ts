@@ -58,6 +58,8 @@ export const STORE_PERMISSIONS = {
   CATEGORY_REQUEST: 'category:request',
   BRAND_VIEW: 'brand:view',
   BRAND_REQUEST: 'brand:request',
+  ATTRIBUTE_VIEW: 'attribute:view',
+  ATTRIBUTE_SUGGEST: 'attribute:suggest',
 } as const;
 
 export type StorePermissionKey = (typeof STORE_PERMISSIONS)[keyof typeof STORE_PERMISSIONS];
@@ -118,6 +120,8 @@ export const STORE_PERMISSION_SEEDS: readonly StorePermissionSeed[] = [
   seed('category:request', 'Request categories', 'Propose categories and restricted access'),
   seed('brand:view', 'View brands', 'Browse the brand master for product assignment'),
   seed('brand:request', 'Request brands', 'Propose brands and file authorisations'),
+  seed('attribute:view', 'View attributes', 'Read category attribute sets for product forms'),
+  seed('attribute:suggest', 'Suggest attributes', 'Propose new attribute option values for review'),
 ];
 
 /**
@@ -141,6 +145,8 @@ export const DEFAULT_STORE_ROLE_PERMISSIONS: Record<string, readonly StorePermis
     STORE_PERMISSIONS.MEDIA_VIEW,
     STORE_PERMISSIONS.CATEGORY_VIEW,
     STORE_PERMISSIONS.BRAND_VIEW,
+    STORE_PERMISSIONS.ATTRIBUTE_VIEW,
+    STORE_PERMISSIONS.ATTRIBUTE_SUGGEST,
   ],
 };
 

@@ -1407,7 +1407,8 @@ export const openApiSpec = {
     '/admin/brands/requests/{id}': {
       patch: {
         tags: ['admin'],
-        summary: 'Approve/reject — approval links the real brand via resolvedBrandId (perm: brand.manage)',
+        summary:
+          'Approve/reject — approval links the real brand via resolvedBrandId (perm: brand.manage)',
         security: [{ bearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: { '200': { description: 'Request decided' } },
@@ -1440,7 +1441,8 @@ export const openApiSpec = {
       },
       patch: {
         tags: ['admin'],
-        summary: 'Edit — slug/flag changes (restricted, featured); rename retires a redirect (perm: brand.manage)',
+        summary:
+          'Edit — slug/flag changes (restricted, featured); rename retires a redirect (perm: brand.manage)',
         security: [{ bearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: { '200': { description: 'Brand updated' } },
@@ -1458,10 +1460,238 @@ export const openApiSpec = {
     '/admin/brands/{id}/merge': {
       post: {
         tags: ['admin'],
-        summary: 'Merge this brand into targetId — re-points authorisations, retires slugs (perm: brand.manage)',
+        summary:
+          'Merge this brand into targetId — re-points authorisations, retires slugs (perm: brand.manage)',
         security: [{ bearerAuth: [] }],
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: { '200': { description: 'Merge committed' } },
+      },
+    },
+    '/admin/catalog-attributes': {
+      get: {
+        tags: ['admin'],
+        summary:
+          'Product attribute list — search, type, status, includeDeleted (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Paginated product attributes' } },
+      },
+      post: {
+        tags: ['admin'],
+        summary:
+          'Create a product attribute — code auto-minted, options seeded inline (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        responses: { '201': { description: 'Product attribute created' } },
+      },
+    },
+    '/admin/catalog-attributes/suggestions': {
+      get: {
+        tags: ['admin'],
+        summary: 'Seller option-suggestion queue (status SUGGESTED) (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Paginated suggestions' } },
+      },
+    },
+    '/admin/catalog-attributes/options/{optionId}/review': {
+      patch: {
+        tags: ['admin'],
+        summary:
+          'Approve (SUGGESTED → ACTIVE) or reject (removed) a suggestion (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'optionId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Review outcome' } },
+      },
+    },
+    '/admin/catalog-attributes/{id}': {
+      get: {
+        tags: ['admin'],
+        summary: 'Product attribute detail with options + set memberships (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Product attribute' } },
+      },
+      patch: {
+        tags: ['admin'],
+        summary:
+          'Edit flags/rules — type change blocked once products consume values (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Updated' } },
+      },
+    },
+    '/admin/catalog-attributes/{id}/status': {
+      patch: {
+        tags: ['admin'],
+        summary: 'Activate/deactivate with reason (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Updated' } },
+      },
+    },
+    '/admin/catalog-attributes/{id}/options': {
+      post: {
+        tags: ['admin'],
+        summary: 'Add an ACTIVE option value (unique among ACTIVE rows) (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '201': { description: 'Option created' } },
+      },
+    },
+    '/admin/catalog-attributes/{id}/options/reorder': {
+      patch: {
+        tags: ['admin'],
+        summary: 'Bulk displayOrder update (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Reordered' } },
+      },
+    },
+    '/admin/catalog-attributes/{id}/options/{optionId}': {
+      patch: {
+        tags: ['admin'],
+        summary: 'Edit/disable/re-enable an option (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'optionId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'Updated' } },
+      },
+      delete: {
+        tags: ['admin'],
+        summary: 'Delete an option (blocked while product values exist) (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'optionId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'Deleted' } },
+      },
+    },
+    '/admin/attribute-sets': {
+      get: {
+        tags: ['admin'],
+        summary: 'Attribute set list — search, status (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Paginated sets' } },
+      },
+      post: {
+        tags: ['admin'],
+        summary: 'Create a set — slug auto-minted (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        responses: { '201': { description: 'Set created' } },
+      },
+    },
+    '/admin/attribute-sets/{id}': {
+      get: {
+        tags: ['admin'],
+        summary: 'Set detail with items + groups + category assignments (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Set' } },
+      },
+      patch: {
+        tags: ['admin'],
+        summary: 'Edit name/slug/description (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Updated' } },
+      },
+      delete: {
+        tags: ['admin'],
+        summary: 'Hard delete — blocked while categories are assigned (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Deleted' } },
+      },
+    },
+    '/admin/attribute-sets/{id}/status': {
+      patch: {
+        tags: ['admin'],
+        summary: 'Activate/deactivate with reason (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Updated' } },
+      },
+    },
+    '/admin/attribute-sets/{id}/clone': {
+      post: {
+        tags: ['admin'],
+        summary: 'Deep-copy groups + items; the clone starts INACTIVE (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '201': { description: 'Clone created' } },
+      },
+    },
+    '/admin/attribute-sets/{id}/groups': {
+      post: {
+        tags: ['admin'],
+        summary: 'Add a form-layout group (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '201': { description: 'Group created' } },
+      },
+    },
+    '/admin/attribute-sets/{id}/groups/{groupId}': {
+      patch: {
+        tags: ['admin'],
+        summary: 'Rename / reorder a group (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'groupId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'Updated' } },
+      },
+      delete: {
+        tags: ['admin'],
+        summary: 'Delete a group — its items survive ungrouped (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'groupId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'Deleted' } },
+      },
+    },
+    '/admin/attribute-sets/{id}/items': {
+      post: {
+        tags: ['admin'],
+        summary:
+          'Attach an ACTIVE attribute (unique per set; optional group + required override) (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '201': { description: 'Attached' } },
+      },
+    },
+    '/admin/attribute-sets/{id}/items/reorder': {
+      patch: {
+        tags: ['admin'],
+        summary: 'Bulk displayOrder update (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Reordered' } },
+      },
+    },
+    '/admin/attribute-sets/{id}/items/{itemId}': {
+      patch: {
+        tags: ['admin'],
+        summary: 'Move to group / set required override / reorder (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'itemId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'Updated' } },
+      },
+      delete: {
+        tags: ['admin'],
+        summary: 'Detach an attribute from the set (perm: attribute.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'itemId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'Detached' } },
       },
     },
     '/seller/catalog/{storeId}/categories/tree': {
@@ -1532,7 +1762,11 @@ export const openApiSpec = {
         security: [{ bearerAuth: [] }],
         parameters: [
           { name: 'storeId', in: 'path', required: true, schema: { type: 'string' } },
-          { name: 'status', in: 'query', schema: { type: 'string', enum: ['PENDING', 'APPROVED', 'REJECTED'] } },
+          {
+            name: 'status',
+            in: 'query',
+            schema: { type: 'string', enum: ['PENDING', 'APPROVED', 'REJECTED'] },
+          },
         ],
         responses: { '200': { description: 'Request list' } },
       },
@@ -1551,7 +1785,11 @@ export const openApiSpec = {
         security: [{ bearerAuth: [] }],
         parameters: [
           { name: 'storeId', in: 'path', required: true, schema: { type: 'string' } },
-          { name: 'status', in: 'query', schema: { type: 'string', enum: ['PENDING', 'APPROVED', 'REJECTED'] } },
+          {
+            name: 'status',
+            in: 'query',
+            schema: { type: 'string', enum: ['PENDING', 'APPROVED', 'REJECTED'] },
+          },
         ],
         responses: { '200': { description: 'Application list' } },
       },
@@ -1578,6 +1816,32 @@ export const openApiSpec = {
           { name: 'brandId', in: 'path', required: true, schema: { type: 'string' } },
         ],
         responses: { '200': { description: 'Access state' } },
+      },
+    },
+    '/seller/catalog/{storeId}/categories/{categoryId}/attribute-set': {
+      get: {
+        tags: ['seller'],
+        summary:
+          'Resolved set for the product form — own wins, nearest ancestor inherited (needs attribute:view)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'storeId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'categoryId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: '{ resolvedFrom, categoryId, set }' } },
+      },
+    },
+    '/seller/catalog/{storeId}/attributes/{attributeId}/options': {
+      post: {
+        tags: ['seller'],
+        summary:
+          'Propose a new option value — enters the admin approval queue as SUGGESTED (needs attribute:suggest)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'storeId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'attributeId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: { '201': { description: 'Suggestion created' } },
       },
     },
     '/public/attributes': {
@@ -1845,7 +2109,11 @@ export const openApiSpec = {
         parameters: [
           { name: 'storeId', in: 'path', required: true, schema: { type: 'string' } },
           { name: 'search', in: 'query', schema: { type: 'string' } },
-          { name: 'kind', in: 'query', schema: { type: 'string', enum: ['IMAGE', 'VIDEO', 'DOCUMENT', 'OTHER'] } },
+          {
+            name: 'kind',
+            in: 'query',
+            schema: { type: 'string', enum: ['IMAGE', 'VIDEO', 'DOCUMENT', 'OTHER'] },
+          },
           { name: 'folder', in: 'query', schema: { type: 'string' } },
           { name: 'orphanOnly', in: 'query', schema: { type: 'boolean' } },
         ],

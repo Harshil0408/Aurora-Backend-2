@@ -711,6 +711,8 @@ model Category {
 
   deletedAt DateTime?
 
+  attributeSet ProductAttributeSet? @relation(fields: [attributeSetId], references: [id])
+
   redirects    CategoryRedirect[]
   accessGrants CategoryAccessGrant[]
   requestedAs  CategoryRequest[]     @relation("RequestedParent")
@@ -996,4 +998,165 @@ model BrandAuthorization {
   @@index([brandId, status])
   @@index([storeId, status, createdAt])
   @@map("brand_authorizations")
+}
+
+// ═══════════════════════ Module 4: attributes & sets ═══════════════════════
+// Product attribute catalog. Deliberately DISTINCT from the generic
+// type/key/label `Attribute` lookup above: these drive the product form,
+// storefront filters, comparison tables, and variant generation.
+
+enum ProductAttributeType {
+  TEXT
+  TEXTAREA
+  NUMBER
+  DECIMAL
+  BOOLEAN
+  DROPDOWN
+  MULTI_SELECT
+  COLOR_SWATCH
+  IMAGE_SWATCH
+  DATE
+}
+
+enum ProductAttributeOptionStatus {
+  // Seller proposal awaiting admin approval (Module 4 suggestion flow).
+  SUGGESTED
+  ACTIVE
+  DISABLED
+}
+
+enum ProductCatalogStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model ProductAttribute {
+  id String @id @default(cuid())
+
+  name String @db.VarChar(128)
+  code String @unique @db.VarChar(160) // snake_case machine key, e.g. ram_size
+  type ProductAttributeType @default(TEXT)
+  unit      String? @db.VarChar(32) // kg, cm, ml, MHz…
+  helpText  String? @db.VarChar(500)
+
+  // Flags (spec: required/filterable/searchable/comparable/variant/visible).
+  required    Boolean @default(false)
+  filterable  Boolean @default(false)
+  searchable  Boolean @default(false)
+  comparable  Boolean @default(false)
+  variantDefining Boolean @default(false)
+  visibleOnPage   Boolean @default(true)
+
+  // Validation rules.
+  validationMin   Float?
+  validationMax   Float?
+  validationRegex String? @db.VarChar(500)
+  allowedUnits    String[] @default([])
+
+  status    ProductCatalogStatus @default(ACTIVE)
+  deletedAt DateTime?
+
+  options ProductAttributeOption[]
+  items   ProductAttributeSetItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([type, status])
+  @@index([status, createdAt])
+  @@map("product_attributes")
+}
+
+model ProductAttributeOption {
+  id String @id @default(cuid())
+
+  attributeId String
+  attribute   ProductAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  label String @db.VarChar(128)
+  value String @db.VarChar(160) // stored value; hex for colour swatches
+  swatchHex String? @db.VarChar(16)
+  imageUrl  String? @db.VarChar(1024)
+
+  displayOrder Int @default(0)
+  status ProductAttributeOptionStatus @default(ACTIVE)
+
+  // Populated for SUGGESTED rows (seller proposal provenance, Module 4).
+  suggestedByStoreId  String? @db.VarChar(64)
+  suggestedBySellerId String? @db.VarChar(64)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([attributeId, displayOrder])
+  @@index([attributeId, status])
+  @@index([status, createdAt])
+  @@map("product_attribute_options")
+}
+
+model ProductAttributeSet {
+  id String @id @default(cuid())
+
+  name        String @db.VarChar(128)
+  slug        String @unique @db.VarChar(160)
+  description String? @db.VarChar(500)
+
+  status    ProductCatalogStatus @default(ACTIVE)
+  deletedAt DateTime?
+
+  groups    ProductAttributeGroup[]
+  items     ProductAttributeSetItem[]
+  categories Category[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@map("product_attribute_sets")
+}
+
+// Form layout group inside a set (General / Technical / Dimensions) —
+// doubles as PDP specification tabs.
+model ProductAttributeGroup {
+  id String @id @default(cuid())
+
+  attributeSetId String
+  attributeSet   ProductAttributeSet @relation(fields: [attributeSetId], references: [id], onDelete: Cascade)
+
+  name         String @db.VarChar(64)
+  displayOrder Int    @default(0)
+
+  items ProductAttributeSetItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([attributeSetId, name])
+  @@index([attributeSetId, displayOrder])
+  @@map("product_attribute_groups")
+}
+
+// Membership of an attribute in a set, optionally pinned to a group with a
+// per-set `required` override (null = inherit the attribute-level flag).
+model ProductAttributeSetItem {
+  id String @id @default(cuid())
+
+  attributeSetId String
+  attributeSet   ProductAttributeSet @relation(fields: [attributeSetId], references: [id], onDelete: Cascade)
+
+  attributeId String
+  attribute   ProductAttribute @relation(fields: [attributeId], references: [id], onDelete: Restrict)
+
+  groupId String?
+  group   ProductAttributeGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+
+  required     Boolean?
+  displayOrder Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([attributeSetId, attributeId])
+  @@index([attributeSetId, displayOrder])
+  @@map("product_attribute_set_items")
 }

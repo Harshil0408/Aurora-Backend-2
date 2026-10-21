@@ -47,6 +47,7 @@ export const PERMISSIONS = {
   ATTRIBUTE_DELETE: 'attribute.delete',
   CATEGORY_MANAGE: 'category.manage',
   BRAND_MANAGE: 'brand.manage',
+  ATTRIBUTE_MANAGE: 'attribute.manage',
   MEDIA_MANAGE: 'media.manage',
   // NOTE: users/products/orders keys live here ONLY once those modules
   // ship. Do not pre-seed future modules — the catalog mirrors reality.
@@ -74,6 +75,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, readonly PermissionKey[]> 
     PERMISSIONS.ATTRIBUTE_UPDATE,
     PERMISSIONS.CATEGORY_MANAGE,
     PERMISSIONS.BRAND_MANAGE,
+    PERMISSIONS.ATTRIBUTE_MANAGE,
     PERMISSIONS.MEDIA_MANAGE,
   ],
   [SUPPORT_ROLE_KEY]: [
@@ -149,7 +151,16 @@ export const PERMISSION_SEEDS: readonly PermissionSeed[] = [
   seed('attribute.delete', 'Delete attributes', 'Delete custom global attributes'),
   seed('category.manage', 'Manage categories', 'Full product-category tree control'),
   seed('brand.manage', 'Manage brands', 'Full brand master control: CRUD, merges, approvals'),
-  seed('media.manage', 'Upload platform media', 'Upload platform artwork (categories, brands, CMS)'),
+  seed(
+    'attribute.manage',
+    'Manage product attributes',
+    'Full product-attribute and attribute-set control: CRUD, options, suggestion queue',
+  ),
+  seed(
+    'media.manage',
+    'Upload platform media',
+    'Upload platform artwork (categories, brands, CMS)',
+  ),
 ];
 
 export function hasPermission(granted: ReadonlySet<string>, required: string): boolean {

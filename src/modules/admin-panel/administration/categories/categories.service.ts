@@ -57,6 +57,21 @@ async function uniqueSlug(
   throw conflict('Could not mint a unique slug — provide one explicitly');
 }
 
+/** Module 4 landed the attribute-set FK — references must resolve. */
+async function assertAttributeSet(
+  client: Prisma.TransactionClient | ReturnType<typeof getPrisma>,
+  attributeSetId: string | null | undefined,
+): Promise<void> {
+  if (!attributeSetId) return;
+  const db = client as Prisma.TransactionClient;
+  const set = await db.productAttributeSet.findUnique({
+    where: { id: attributeSetId },
+    select: { status: true },
+  });
+  if (!set) throw badRequest('Attribute set not found');
+  if (set.status !== 'ACTIVE') throw badRequest('Attribute set is not ACTIVE');
+}
+
 /** Walk ancestors to reject cycles; throws on missing parent. */
 async function assertValidParent(
   client: Prisma.TransactionClient | ReturnType<typeof getPrisma>,
@@ -246,6 +261,7 @@ export async function createCategory(
   const base = input.slug ? slugify(input.slug) : slugify(input.name);
   return prisma.$transaction(async (tx) => {
     await assertValidParent(tx, null, input.parentId ?? null);
+    await assertAttributeSet(tx, input.attributeSetId);
     const slug = await uniqueSlug(tx, base);
     const created = await tx.category.create({
       data: {
@@ -295,6 +311,9 @@ export async function updateCategory(
   return prisma.$transaction(async (tx) => {
     if (input.parentId !== undefined) {
       await assertValidParent(tx, id, input.parentId);
+    }
+    if (input.attributeSetId !== undefined) {
+      await assertAttributeSet(tx, input.attributeSetId ?? null);
     }
     let slug = row.slug;
     if (input.slug !== undefined || input.name !== undefined) {

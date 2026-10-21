@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { adminsRouter } from './admins/admins.routes.js';
 import { attributesRouter } from './attributes/attributes.routes.js';
+import { attributeSetsRouter } from './attribute-sets/attribute-sets.routes.js';
+import { catalogAttributesRouter } from './catalog-attributes/catalog-attributes.routes.js';
 import { brandsRouter } from './brands/brands.routes.js';
 import { categoriesRouter } from './categories/categories.routes.js';
 import { uploadsRouter } from './uploads/uploads.routes.js';
@@ -9,7 +11,8 @@ import { activityLogRouter } from './activity-log/activity-log.routes.js';
 
 /**
  * Administration group of the admin panel (mirrors the frontend sidebar group):
- * Admins, Roles & Permissions, Activity Log, Attributes, Categories, Brands.
+ * Admins, Roles & Permissions, Activity Log, Attributes (lookup dictionary),
+ * Catalog Attributes, Attribute Sets, Categories, Brands.
  * The Sessions screen router mounts separately under /api/v1/admin/auth
  * (same URLs as before) — see sessions/sessions.routes.ts.
  */
@@ -19,6 +22,8 @@ administrationRouter.use(adminsRouter);
 administrationRouter.use(rolesPermissionsRouter);
 administrationRouter.use(activityLogRouter);
 administrationRouter.use(attributesRouter);
+administrationRouter.use(catalogAttributesRouter);
+administrationRouter.use(attributeSetsRouter);
 administrationRouter.use(categoriesRouter);
 administrationRouter.use(brandsRouter);
 administrationRouter.use(uploadsRouter);
