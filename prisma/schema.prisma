@@ -408,6 +408,10 @@ model Store {
   contactEmail String? @db.VarChar(255)
   contactPhone String? @db.VarChar(32)
 
+  // Inclusive-tax override (Module 5): null = inherit the platform
+  // CommerceSettings.priceIncludesTax, true/false override it.
+  priceIncludesTax Boolean?
+
   onboardingCompletedAt DateTime?
 
   deletedAt DateTime?
@@ -701,9 +705,9 @@ model Category {
   canonicalUrl    String? @db.VarChar(1024)
   ogImageUrl      String? @db.VarChar(1024)
 
-  // Forward placeholders — FK targets land in Modules 4 (attribute sets),
-  // 5 (tax classes) and 6/29 (commission). Nullable until then; the admin
-  // UI renders them disabled with an explanatory note.
+  // Forward placeholders — FK targets land in Modules 5 (tax classes — done)
+  // and 6/29 (commission). Nullable until then; the admin UI renders them
+  // disabled with an explanatory note while the target module is missing.
   attributeSetId    String?
   taxClassId        String?
   commissionRateBps Int?
@@ -712,6 +716,7 @@ model Category {
   deletedAt DateTime?
 
   attributeSet ProductAttributeSet? @relation(fields: [attributeSetId], references: [id])
+  taxClass     TaxClass?            @relation(fields: [taxClassId], references: [id])
 
   redirects    CategoryRedirect[]
   accessGrants CategoryAccessGrant[]
@@ -1159,4 +1164,141 @@ model ProductAttributeSetItem {
   @@unique([attributeSetId, attributeId])
   @@index([attributeSetId, displayOrder])
   @@map("product_attribute_set_items")
+}
+
+// ═══════════════════════ Module 5: tax, units & currency ═══════════════════
+// Commerce configuration masters: GST tax classes (CGST/SGST vs IGST split
+// is DERIVED at quote time — never stored as separate rate rows), the
+// HSN/SAC code master, units of measure with base-unit factors, and the
+// platform commerce settings singleton (tax-inclusive pricing, currencies,
+// rounding). The checkout tax engine lands with the orders module and will
+// snapshot class + rate values per order line for invoice immutability —
+// masters may therefore change freely without retroactive effects.
+
+enum TaxClassStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model TaxClass {
+  id String @id @default(cuid())
+
+  name        String  @unique @db.VarChar(128)
+  description String? @db.VarChar(500)
+
+  status    TaxClassStatus @default(ACTIVE)
+  deletedAt DateTime?
+
+  rates      TaxRate[]
+  categories Category[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@map("tax_classes")
+}
+
+// Regional rate override within a class. `region = 'ALL'` is the nationwide
+// base rate; any other value is a state/UT code (GST special-category states
+// charge variations). Quote resolution: exact state row wins, 'ALL' fallback,
+// otherwise the class is considered unconfigured for that state.
+model TaxRate {
+  id String @id @default(cuid())
+
+  taxClassId String
+  taxClass   TaxClass @relation(fields: [taxClassId], references: [id], onDelete: Cascade)
+
+  region       String  @default("ALL") @db.VarChar(8)
+  ratePercent  Decimal @db.Decimal(5, 2) // headline GST rate, e.g. 18.00
+  cessPercent  Decimal @default(0) @db.Decimal(5, 2) // additional cess on top of the GST headline
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([taxClassId, region])
+  @@index([taxClassId])
+  @@map("tax_rates")
+}
+
+// Goods & Services Tax note / Service Accounting Code master. Codes are
+// 4, 6 or 8 digits (validation is schema-level, digit length only — full
+// chapter/shard validation arrives with the products module).
+enum HsnKind {
+  HSN
+  SAC
+}
+
+model HsnCode {
+  id String @id @default(cuid())
+
+  kind HsnKind @default(HSN)
+  code String  @unique @db.VarChar(8)
+
+  description    String?  @db.VarChar(1000)
+  // Suggested default-GST headline — products may prefill the class from it.
+  gstRatePercent Decimal? @db.Decimal(5, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([kind])
+  @@map("hsn_codes")
+}
+
+// Units of measure. Conversion is factor-based: every unit belongs to a
+// dimension and carries `factor` = how many BASE units one of itself is
+// (kg/m/l/piece are base ⇒ factor 1; g = 0.001 kg, mm = 0.001 m…). Valid
+// conversions only exist WITHIN a dimension — converted value =
+// value * fromFactor / toFactor.
+enum UnitDimension {
+  MASS
+  LENGTH
+  VOLUME
+  QUANTITY
+}
+
+model UnitOfMeasure {
+  id String @id @default(cuid())
+
+  code String @unique @db.VarChar(16) // kg, g, cm, mm, ml, l, piece, pack…
+  name String @db.VarChar(64)
+
+  dimension UnitDimension @default(QUANTITY)
+  baseCode  String        @db.VarChar(16) // the dimension's base unit code
+  factor    Decimal       @db.Decimal(18, 9) // to base, ≥ 0, unique per base
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dimension])
+  @@map("units_of_measure")
+}
+
+enum RoundingMode {
+  NONE // keep paise-precision totals
+  ROUND_HALF_UP // 123.455 → 123.46
+  ROUND_UP_TO_RUPEE // Indian RUP convention: totals always round up to the next rupee
+}
+
+// Platform commerce settings singleton (id = 'singleton'), created lazily via
+// upsert by the service — no seed dependency.
+model CommerceSettings {
+  id String @id @default("singleton")
+
+  // Platform-wide default; a Store may override with its own nullable
+  // `priceIncludesTax` (Store override is "allowed" unconditionally in
+  // Phase 1 — an allow-toggle lands with the sellers/commission module).
+  priceIncludesTax Boolean @default(false)
+
+  baseCurrency    String       @default("INR") @db.VarChar(8) // pricing/ledger currency
+  displayCurrency String       @default("INR") @db.VarChar(8) // storefront rendering currency
+  roundingMode    RoundingMode @default(NONE)
+
+  updatedById String? @db.VarChar(64)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("commerce_settings")
 }

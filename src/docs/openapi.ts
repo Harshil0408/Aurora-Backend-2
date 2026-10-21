@@ -19,6 +19,11 @@ export const openApiSpec = {
       description: 'Seller panel: auth, stores, team, billing (refresh cookie: seller_rt)',
     },
     { name: 'public', description: 'Public read-only catalog (no auth, ACTIVE rows only)' },
+    {
+      name: 'tax',
+      description:
+        'Tax classes + rates, HSN/SAC master, units of measure, commerce settings (perm: tax.manage)',
+    },
   ],
   components: {
     securitySchemes: {
@@ -1692,6 +1697,321 @@ export const openApiSpec = {
           { name: 'itemId', in: 'path', required: true, schema: { type: 'string' } },
         ],
         responses: { '200': { description: 'Detached' } },
+      },
+    },
+    '/admin/tax/quote': {
+      post: {
+        tags: ['tax'],
+        summary:
+          'Preview a static quote: CGST/SGST intra-state, IGST inter-state, cess separate (perm: tax.manage)',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['amount', 'taxClassId', 'sellerState'],
+                properties: {
+                  amount: { type: 'number', example: 1000 },
+                  taxClassId: { type: 'string' },
+                  sellerState: { type: 'string', example: 'KA' },
+                  buyerState: { type: 'string', example: 'MH' },
+                  inclusive: {
+                    type: 'boolean',
+                    description: 'Default falls back to commerce settings',
+                  },
+                  rounding: { type: 'string', enum: ['none', 'half-up', 'rup'] },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': { description: '{ grossAmount, netAmount, taxTotal, components[] }' },
+          '400': { description: 'Unconfigured region or INACTIVE class' },
+        },
+      },
+    },
+    '/admin/tax-classes': {
+      get: {
+        tags: ['tax'],
+        summary: 'Tax class list — status + search (perm: tax.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 20 } },
+          { name: 'status', in: 'query', schema: { type: 'string', enum: ['ACTIVE', 'INACTIVE'] } },
+          { name: 'search', in: 'query', schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'Paginated tax classes' } },
+      },
+      post: {
+        tags: ['tax'],
+        summary: 'Create a tax class — name unique (perm: tax.manage)',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['name'],
+                properties: {
+                  name: { type: 'string', example: 'GST 18%' },
+                  description: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': { description: 'Tax class created' },
+          '409': { description: 'Duplicate name' },
+        },
+      },
+    },
+    '/admin/tax-classes/{id}': {
+      get: {
+        tags: ['tax'],
+        summary: 'Tax class detail with all rate rows (perm: tax.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Tax class' } },
+      },
+      patch: {
+        tags: ['tax'],
+        summary: 'Edit name/description (perm: tax.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Updated' } },
+      },
+      delete: {
+        tags: ['tax'],
+        summary:
+          'Delete — blocked 409 while categories still default to this class (perm: tax.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          '200': { description: 'Deleted' },
+          '409': { description: 'Re-point categories first' },
+        },
+      },
+    },
+    '/admin/tax-classes/{id}/status': {
+      patch: {
+        tags: ['tax'],
+        summary:
+          'Activate/deactivate with reason — INACTIVE classes are quote-gated (perm: tax.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Status changed' } },
+      },
+    },
+    '/admin/tax-classes/{id}/rates': {
+      post: {
+        tags: ['tax'],
+        summary:
+          'Add a rate row — region ALL (nationwide base) or 2-letter state override (perm: tax.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['ratePercent'],
+                properties: {
+                  region: { type: 'string', default: 'ALL', example: 'ALL' },
+                  ratePercent: { type: 'number', example: 18 },
+                  cessPercent: { type: 'number', default: 0 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': { description: 'Rate created' },
+          '409': { description: 'Duplicate region row for this class' },
+        },
+      },
+    },
+    '/admin/tax-classes/{id}/rates/{rateId}': {
+      patch: {
+        tags: ['tax'],
+        summary: 'Edit rate/cess percent — region is immutable (perm: tax.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'rateId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'Updated' } },
+      },
+      delete: {
+        tags: ['tax'],
+        summary: 'Remove a rate row (perm: tax.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'rateId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'Deleted' } },
+      },
+    },
+    '/admin/hsn-codes': {
+      get: {
+        tags: ['tax'],
+        summary: 'HSN/SAC list — kind filter + search (perm: tax.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 20 } },
+          { name: 'kind', in: 'query', schema: { type: 'string', enum: ['HSN', 'SAC'] } },
+          { name: 'search', in: 'query', schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'Paginated codes' } },
+      },
+      post: {
+        tags: ['tax'],
+        summary: 'Create a code — 4/6/8 digits, code unique (perm: tax.manage)',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['code'],
+                properties: {
+                  kind: { type: 'string', enum: ['HSN', 'SAC'], default: 'HSN' },
+                  code: { type: 'string', example: '85171300' },
+                  description: { type: 'string' },
+                  gstRatePercent: { type: 'number', example: 18 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': { description: 'Code created' },
+          '409': { description: 'Duplicate code' },
+        },
+      },
+    },
+    '/admin/hsn-codes/{id}': {
+      patch: {
+        tags: ['tax'],
+        summary: 'Edit code/description/default GST rate (perm: tax.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Updated' }, '409': { description: 'Duplicate code' } },
+      },
+      delete: {
+        tags: ['tax'],
+        summary: 'Delete a code (perm: tax.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Deleted' } },
+      },
+    },
+    '/admin/units': {
+      get: {
+        tags: ['tax'],
+        summary: 'Unit list — dimension filter + search (perm: tax.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'page', in: 'query', schema: { type: 'integer', default: 1 } },
+          { name: 'limit', in: 'query', schema: { type: 'integer', default: 50 } },
+          {
+            name: 'dimension',
+            in: 'query',
+            schema: { type: 'string', enum: ['MASS', 'LENGTH', 'VOLUME', 'QUANTITY'] },
+          },
+          { name: 'search', in: 'query', schema: { type: 'string' } },
+        ],
+        responses: { '200': { description: 'Paginated units' } },
+      },
+      post: {
+        tags: ['tax'],
+        summary:
+          'Create a unit — one factor-1 base per dimension; conversions only within a dimension (perm: tax.manage)',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['code', 'name', 'dimension', 'baseCode', 'factor'],
+                properties: {
+                  code: { type: 'string', example: 'kg' },
+                  name: { type: 'string', example: 'Kilogram' },
+                  dimension: { type: 'string', enum: ['MASS', 'LENGTH', 'VOLUME', 'QUANTITY'] },
+                  baseCode: { type: 'string', example: 'kg' },
+                  factor: { type: 'number', example: 1 },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': { description: 'Unit created' },
+          '400': { description: 'Base/dimension invariant violated' },
+        },
+      },
+    },
+    '/admin/units/{id}': {
+      patch: {
+        tags: ['tax'],
+        summary: 'Edit name/dimension/base/factor — code immutable (perm: tax.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Updated' } },
+      },
+      delete: {
+        tags: ['tax'],
+        summary: 'Delete — blocked 409 while product attributes allow the code (perm: tax.manage)',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: {
+          '200': { description: 'Deleted' },
+          '409': { description: 'Referenced by attribute allowed-units' },
+        },
+      },
+    },
+    '/admin/commerce-settings': {
+      get: {
+        tags: ['tax'],
+        summary:
+          'Singleton settings — lazily creates defaults (priceIncludesTax, currencies, rounding) (perm: tax.manage)',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Commerce settings' } },
+      },
+      patch: {
+        tags: ['tax'],
+        summary: 'Partial update of the platform settings singleton (perm: tax.manage)',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  priceIncludesTax: { type: 'boolean' },
+                  baseCurrency: { type: 'string', example: 'INR' },
+                  displayCurrency: { type: 'string', example: 'INR' },
+                  roundingMode: {
+                    type: 'string',
+                    enum: ['NONE', 'ROUND_HALF_UP', 'ROUND_UP_TO_RUPEE'],
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: { '200': { description: 'Updated' } },
       },
     },
     '/seller/catalog/{storeId}/categories/tree': {

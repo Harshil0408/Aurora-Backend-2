@@ -57,7 +57,12 @@ const SUBSCRIPTION_PLAN_SEEDS = [
     description: 'For high-volume sellers.',
     pricePaise: 399900,
     billingCycle: 'MONTHLY',
-    limits: { 'products.max': 10000, 'staff.max': 50, 'orders.monthly': 100000, 'storage.mb': 102400 },
+    limits: {
+      'products.max': 10000,
+      'staff.max': 50,
+      'orders.monthly': 100000,
+      'storage.mb': 102400,
+    },
     trialDays: 14,
   },
 ] as const;
@@ -198,6 +203,67 @@ async function seedCatalog(): Promise<void> {
   }
   logger.info(
     `Seeded ${STORE_PERMISSION_SEEDS.length} store permissions, ${SUBSCRIPTION_PLAN_SEEDS.length} plans`,
+  );
+
+  // Module 5 bootstrap: standard units of measure (spec list) + a default
+  // GST class set so a fresh environment can quote immediately. All upserts.
+  const UNIT_SEEDS = [
+    { code: 'kg', name: 'Kilogram', dimension: 'MASS', baseCode: 'kg', factor: 1 },
+    { code: 'g', name: 'Gram', dimension: 'MASS', baseCode: 'kg', factor: 0.001 },
+    { code: 'm', name: 'Metre', dimension: 'LENGTH', baseCode: 'm', factor: 1 },
+    { code: 'cm', name: 'Centimetre', dimension: 'LENGTH', baseCode: 'm', factor: 0.01 },
+    { code: 'mm', name: 'Millimetre', dimension: 'LENGTH', baseCode: 'm', factor: 0.001 },
+    { code: 'l', name: 'Litre', dimension: 'VOLUME', baseCode: 'l', factor: 1 },
+    { code: 'ml', name: 'Millilitre', dimension: 'VOLUME', baseCode: 'l', factor: 0.001 },
+    { code: 'piece', name: 'Piece', dimension: 'QUANTITY', baseCode: 'piece', factor: 1 },
+    {
+      code: 'pack',
+      name: 'Pack (count varies per product)',
+      dimension: 'QUANTITY',
+      baseCode: 'piece',
+      factor: 1,
+    },
+  ] as const;
+  for (const unit of UNIT_SEEDS) {
+    await prisma.unitOfMeasure.upsert({
+      where: { code: unit.code },
+      update: {
+        name: unit.name,
+        dimension: unit.dimension,
+        baseCode: unit.baseCode,
+        factor: unit.factor,
+      },
+      create: {
+        code: unit.code,
+        name: unit.name,
+        dimension: unit.dimension,
+        baseCode: unit.baseCode,
+        factor: unit.factor,
+      },
+    });
+  }
+  const GST_SLABS = [0, 5, 12, 18, 28] as const;
+  for (const slab of GST_SLABS) {
+    const name = slab === 0 ? 'GST 0% — exempt' : `GST ${slab}%`;
+    const existing = await prisma.taxClass.findUnique({ where: { name } });
+    if (existing) continue; // never mint a duplicate on re-run
+    await prisma.taxClass.upsert({
+      where: { name },
+      update: {},
+      create: {
+        name,
+        description: 'Seeded standard GST slab — regional overrides can be added.',
+        rates: { create: { region: 'ALL', ratePercent: slab, cessPercent: 0 } },
+      },
+    });
+  }
+  await prisma.commerceSettings.upsert({
+    where: { id: 'singleton' },
+    update: {},
+    create: { id: 'singleton' },
+  });
+  logger.info(
+    `Seeded ${UNIT_SEEDS.length} units, ${GST_SLABS.length} GST classes, commerce settings`,
   );
 }
 

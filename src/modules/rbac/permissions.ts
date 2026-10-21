@@ -48,6 +48,7 @@ export const PERMISSIONS = {
   CATEGORY_MANAGE: 'category.manage',
   BRAND_MANAGE: 'brand.manage',
   ATTRIBUTE_MANAGE: 'attribute.manage',
+  TAX_MANAGE: 'tax.manage',
   MEDIA_MANAGE: 'media.manage',
   // NOTE: users/products/orders keys live here ONLY once those modules
   // ship. Do not pre-seed future modules — the catalog mirrors reality.
@@ -76,6 +77,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Record<string, readonly PermissionKey[]> 
     PERMISSIONS.CATEGORY_MANAGE,
     PERMISSIONS.BRAND_MANAGE,
     PERMISSIONS.ATTRIBUTE_MANAGE,
+    PERMISSIONS.TAX_MANAGE,
     PERMISSIONS.MEDIA_MANAGE,
   ],
   [SUPPORT_ROLE_KEY]: [
@@ -329,6 +331,18 @@ export const PERMISSION_GROUPS: readonly PermissionGroup[] = [
         key: PERMISSIONS.ATTRIBUTE_DELETE,
         label: 'Delete attributes',
         description: 'Delete custom global attributes',
+      },
+    ],
+  },
+  {
+    group: 'tax',
+    label: 'Tax, units & currency',
+    permissions: [
+      {
+        key: PERMISSIONS.TAX_MANAGE,
+        label: 'Manage tax, units & currency',
+        description:
+          'Tax classes with regional rates, HSN/SAC master, units of measure, commerce settings and the quote preview',
       },
     ],
   },

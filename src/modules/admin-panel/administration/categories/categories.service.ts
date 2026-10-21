@@ -3,10 +3,7 @@ import { getPrisma } from '../../../../config/db.js';
 import { badRequest, conflict, notFound } from '../../../../shared/errors/AppError.js';
 import type { RequestMeta } from '../../../../shared/utils/requestMeta.js';
 import { recordAudit } from '../../../audit/audit.service.js';
-import type {
-  CreateCategoryInput,
-  UpdateCategoryInput,
-} from './categories.schemas.js';
+import type { CreateCategoryInput, UpdateCategoryInput } from './categories.schemas.js';
 
 /**
  * Phase 1 · Module 2 — product category tree (admin-owned).
@@ -72,6 +69,18 @@ async function assertAttributeSet(
   if (set.status !== 'ACTIVE') throw badRequest('Attribute set is not ACTIVE');
 }
 
+/** Module 5 landed the tax-class FK — references must resolve. */
+async function assertTaxClass(
+  client: Prisma.TransactionClient | ReturnType<typeof getPrisma>,
+  taxClassId: string | null | undefined,
+): Promise<void> {
+  if (!taxClassId) return;
+  const db = client as Prisma.TransactionClient;
+  const row = await db.taxClass.findUnique({ where: { id: taxClassId }, select: { status: true } });
+  if (!row) throw badRequest('Tax class not found');
+  if (row.status !== 'ACTIVE') throw badRequest('Tax class is not ACTIVE');
+}
+
 /** Walk ancestors to reject cycles; throws on missing parent. */
 async function assertValidParent(
   client: Prisma.TransactionClient | ReturnType<typeof getPrisma>,
@@ -85,7 +94,8 @@ async function assertValidParent(
   let cursor: string | null = parentId;
   const seen = new Set<string>();
   while (cursor) {
-    if (cursor === selfId) throw badRequest('A category cannot live under itself or its descendants');
+    if (cursor === selfId)
+      throw badRequest('A category cannot live under itself or its descendants');
     if (seen.has(cursor)) break;
     seen.add(cursor);
     if (seen.size > 500) throw badRequest('Category tree too deep to re-parent safely');
@@ -262,6 +272,7 @@ export async function createCategory(
   return prisma.$transaction(async (tx) => {
     await assertValidParent(tx, null, input.parentId ?? null);
     await assertAttributeSet(tx, input.attributeSetId);
+    await assertTaxClass(tx, input.taxClassId);
     const slug = await uniqueSlug(tx, base);
     const created = await tx.category.create({
       data: {
@@ -315,6 +326,9 @@ export async function updateCategory(
     if (input.attributeSetId !== undefined) {
       await assertAttributeSet(tx, input.attributeSetId ?? null);
     }
+    if (input.taxClassId !== undefined) {
+      await assertTaxClass(tx, input.taxClassId ?? null);
+    }
     let slug = row.slug;
     if (input.slug !== undefined || input.name !== undefined) {
       const base = input.slug ? slugify(input.slug) : slugify(input.name ?? row.name);
@@ -352,9 +366,7 @@ export async function updateCategory(
           ? { canonicalUrl: clean(input.canonicalUrl) || null }
           : {}),
         ...(input.ogImageUrl !== undefined ? { ogImageUrl: clean(input.ogImageUrl) || null } : {}),
-        ...(input.attributeSetId !== undefined
-          ? { attributeSetId: input.attributeSetId }
-          : {}),
+        ...(input.attributeSetId !== undefined ? { attributeSetId: input.attributeSetId } : {}),
         ...(input.taxClassId !== undefined ? { taxClassId: input.taxClassId } : {}),
         ...(input.commissionRateBps !== undefined
           ? { commissionRateBps: input.commissionRateBps }
@@ -483,7 +495,9 @@ export async function importCategories(
       const name = String(r?.['name'] ?? '').trim();
       if (name.length < 2) throw new Error('name is required (min 2 chars)');
       const slug = r?.['slug'] ? slugify(String(r['slug'])) : slugify(name);
-      const parentPath = String(r?.['parentPath'] ?? '').trim().toLowerCase();
+      const parentPath = String(r?.['parentPath'] ?? '')
+        .trim()
+        .toLowerCase();
       return { slug, fullPath: parentPath ? `${parentPath}/${slug}` : slug };
     } catch (err) {
       errors.push({ row: i + 1, message: err instanceof Error ? err.message : 'Invalid row' });
@@ -523,11 +537,12 @@ export async function importCategories(
         continue;
       }
       // Within-file parent: an earlier row planning this exact path.
-      const plannedIdx = planned.findIndex(
-        (p, idx) => idx < rowNum - 1 && p.fullPath === trail,
-      );
+      const plannedIdx = planned.findIndex((p, idx) => idx < rowNum - 1 && p.fullPath === trail);
       if (plannedIdx === -1 || rowFailed(plannedIdx + 1)) {
-        errors.push({ row: rowNum, message: `parent path not found at "${seg}" in "${parentPath}"` });
+        errors.push({
+          row: rowNum,
+          message: `parent path not found at "${seg}" in "${parentPath}"`,
+        });
         return null;
       }
       // In commit mode earlier rows are already in the DB — re-read.
@@ -566,14 +581,21 @@ export async function importCategories(
       }
       if (mode === 'commit' && !rowFailed(rowNum)) {
         await prisma.$transaction(async (tx) => {
-          await assertValidParent(tx, existing && !existing.deletedAt ? existing.id : null, parentId);
+          await assertValidParent(
+            tx,
+            existing && !existing.deletedAt ? existing.id : null,
+            parentId,
+          );
           if (existing && !existing.deletedAt) {
             const patch: Prisma.CategoryUpdateInput = {
               name,
-              ...(parentId ? { parent: { connect: { id: parentId } } } : { parent: { disconnect: true } }),
+              ...(parentId
+                ? { parent: { connect: { id: parentId } } }
+                : { parent: { disconnect: true } }),
             };
             if (row['description']) patch.description = String(row['description']).slice(0, 2000);
-            if (row['displayOrder'] !== undefined) patch.displayOrder = Number(row['displayOrder']) || 0;
+            if (row['displayOrder'] !== undefined)
+              patch.displayOrder = Number(row['displayOrder']) || 0;
             if (row['status'] === 'INACTIVE') patch.status = 'INACTIVE';
             if (row['showInNav'] !== undefined) patch.showInNav = Boolean(row['showInNav']);
             await tx.category.update({ where: { id: existing.id }, data: patch });
@@ -586,7 +608,8 @@ export async function importCategories(
                 slug: finalSlug,
                 parentId,
                 description: row['description'] ? String(row['description']).slice(0, 2000) : null,
-                displayOrder: row['displayOrder'] !== undefined ? Number(row['displayOrder']) || 0 : 0,
+                displayOrder:
+                  row['displayOrder'] !== undefined ? Number(row['displayOrder']) || 0 : 0,
                 status: row['status'] === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE',
               },
             });
@@ -637,7 +660,11 @@ export async function exportCategories(): Promise<Array<Record<string, unknown>>
 
 // ── Review queues (seller requests + restricted-access applications) ──
 
-export async function listCategoryRequests(query: { page: number; limit: number; status: 'PENDING' | 'APPROVED' | 'REJECTED' }) {
+export async function listCategoryRequests(query: {
+  page: number;
+  limit: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+}) {
   const prisma = getPrisma();
   const where: Prisma.CategoryRequestWhereInput = { status: query.status };
   const [data, total] = await Promise.all([
@@ -696,7 +723,11 @@ export async function reviewCategoryRequest(
   });
 }
 
-export async function listAccessGrants(query: { page: number; limit: number; status: 'PENDING' | 'APPROVED' | 'REJECTED' }) {
+export async function listAccessGrants(query: {
+  page: number;
+  limit: number;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+}) {
   const prisma = getPrisma();
   const where: Prisma.CategoryAccessGrantWhereInput = { status: query.status };
   const [data, total] = await Promise.all([
