@@ -31,6 +31,7 @@
     "prisma:deploy:local": "node scripts/with-env.mjs --file .env --app-env local -- prisma migrate deploy",
     "prisma:deploy:production": "node scripts/with-env.mjs --file .env.production --app-env production -- prisma migrate deploy",
     "db:seed:local": "node scripts/with-env.mjs --file .env --app-env local -- prisma db seed",
+    "db:demo:local": "node scripts/with-env.mjs --file .env --app-env local -- tsx prisma/demo-seed.ts",
     "db:seed:production": "node scripts/with-env.mjs --file .env.production --app-env production -- prisma db seed",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
